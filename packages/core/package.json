@@ -1,5 +1,5 @@
 {
-  "name": "@trusttrace/core",
+  "name": "core",
   "version": "1.0.0",
   "description": "TRUSTTRACE Shared Cryptographic Core & EIP-712 / Contract ABI",
   "main": "./src/index.ts",
@@ -17,7 +17,7 @@
     "./abi": "./src/abi/index.ts"
   },
   "scripts": {
-    "test": "node --input-type=module --experimental-strip-types test/run-tests.ts"
+    "test": "node --experimental-strip-types test/run-tests.ts"
   },
   "keywords": [
     "trusttrace",

@@ -73,10 +73,14 @@ export interface MerkleProofStep {
 export interface MerkleProof {
   /** 0-based leaf index inside the batch */
   leafIndex: number;
+  /** Total number of leaves in the batch (needed so verifier knows which levels have no sibling) */
+  leafCount: number;
   /** 32-byte leaf hash (0x...) */
   leafHash: string;
   /** 32-byte expected Merkle root (0x...) */
   root: string;
+  /** Ordered list of sibling hashes along the path (omits levels where odd node was promoted) */
+  siblings: string[];
   /** Ordered list of steps from leaf to root */
   steps: MerkleProofStep[];
 }

@@ -79,7 +79,7 @@ export function formatRawEventBytes(raw: Uint8Array | Buffer | string): Buffer {
  * - rawEventLength: 4 bytes big-endian (uint32 BE)
  * - rawEventBytes: N bytes (length must match rawEventLength)
  */
-export function encodeLeafPreimage(event: CanonicalEvent): Buffer {
+export function encodeLeaf(event: CanonicalEvent): Buffer {
   // Domain tag: 1B (0x00)
   const tagBuf = Buffer.from([LEAF_DOMAIN_TAG]);
 
@@ -129,14 +129,19 @@ export function encodeLeafPreimage(event: CanonicalEvent): Buffer {
  * 
  * Returns 32-byte Buffer.
  */
-export function computeLeafHash(event: CanonicalEvent): Buffer {
-  const preimage = encodeLeafPreimage(event);
+export function hashLeaf(event: CanonicalEvent): Buffer {
+  const preimage = encodeLeaf(event);
   return crypto.createHash('sha256').update(preimage).digest();
 }
+
+/** Backward compatibility aliases */
+export const encodeLeafPreimage = encodeLeaf;
+export const computeLeafHash = hashLeaf;
 
 /**
  * Computes canonical leaf hash returning 0x-prefixed hex string (66 chars).
  */
 export function computeLeafHashHex(event: CanonicalEvent): string {
-  return '0x' + computeLeafHash(event).toString('hex');
+  return '0x' + hashLeaf(event).toString('hex');
 }
+export const hashLeafHex = computeLeafHashHex;

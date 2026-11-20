@@ -35,7 +35,7 @@ function toBuffer32(hash: Uint8Array | Buffer | string, name = 'hash'): Buffer {
  * 
  * Preimage length is exactly 65 bytes (1 + 32 + 32).
  */
-export function hashInternalNode(
+export function hashNode(
   left: Uint8Array | Buffer | string,
   right: Uint8Array | Buffer | string
 ): Buffer {
@@ -44,6 +44,9 @@ export function hashInternalNode(
   const preimage = Buffer.concat([Buffer.from([NODE_DOMAIN_TAG]), leftBuf, rightBuf]);
   return crypto.createHash('sha256').update(preimage).digest();
 }
+
+/** Backward compatibility alias */
+export const hashInternalNode = hashNode;
 
 /**
  * Builds a deterministic binary Merkle tree from an ordered array of leaf hashes.
@@ -57,7 +60,7 @@ export function hashInternalNode(
  * 
  * Returns { root, layers } where layers[0] is leaves, layers[last] is [root].
  */
-export function buildMerkleTree(
+export function buildTree(
   leaves: (Uint8Array | Buffer | string)[]
 ): { root: Buffer; layers: Buffer[][] } {
   if (!leaves || leaves.length === 0) {
@@ -74,7 +77,7 @@ export function buildMerkleTree(
     for (let i = 0; i < currentLayer.length; i += 2) {
       if (i + 1 < currentLayer.length) {
         // Even pair: hash with 0x01 domain tag
-        nextLayer.push(hashInternalNode(currentLayer[i], currentLayer[i + 1]));
+        nextLayer.push(hashNode(currentLayer[i], currentLayer[i + 1]));
       } else {
         // LOCKED: odd node promoted unchanged (never duplicated)
         nextLayer.push(currentLayer[i]);
@@ -90,11 +93,14 @@ export function buildMerkleTree(
   };
 }
 
+/** Backward compatibility alias */
+export const buildMerkleTree = buildTree;
+
 /**
  * Computes the Merkle root directly from leaf hashes.
  */
 export function computeMerkleRoot(leaves: (Uint8Array | Buffer | string)[]): Buffer {
-  return buildMerkleTree(leaves).root;
+  return buildTree(leaves).root;
 }
 
 /**
@@ -107,22 +113,38 @@ export function computeMerkleRootHex(leaves: (Uint8Array | Buffer | string)[]): 
 /**
  * Generates an inclusion proof for a leaf at index `leafIndex`.
  * 
- * Handles the locked odd-node promotion rule:
- * If a node at layer L is promoted without a sibling, the proof step records:
- * { position: 'promoted', sibling: null }
+ * SPECIFICATION:
+ * A proof needs (leafIndex, leafCount) so the verifier knows which levels have no sibling.
+ * 
+ * Accepts either:
+ * - `leaves`: an array of leaf hashes (Uint8Array | Buffer | string)[]
+ * - `layers`: the pre-computed tree layers Buffer[][]
  */
-export function generateMerkleProof(
-  layers: Buffer[][],
+export function getProof(
+  leavesOrLayers: (Uint8Array | Buffer | string)[] | Buffer[][],
   leafIndex: number
 ): MerkleProof {
+  let layers: Buffer[][];
+  let leafCount: number;
+
+  if (Array.isArray(leavesOrLayers) && leavesOrLayers.length > 0 && Array.isArray(leavesOrLayers[0])) {
+    layers = leavesOrLayers as Buffer[][];
+    leafCount = layers[0].length;
+  } else {
+    const tree = buildTree(leavesOrLayers as (Uint8Array | Buffer | string)[]);
+    layers = tree.layers;
+    leafCount = layers[0].length;
+  }
+
   if (layers.length === 0 || layers[0].length === 0) {
     throw new Error('Layers array is empty');
   }
-  if (leafIndex < 0 || leafIndex >= layers[0].length) {
-    throw new RangeError(`leafIndex ${leafIndex} out of bounds [0, ${layers[0].length - 1}]`);
+  if (leafIndex < 0 || leafIndex >= leafCount) {
+    throw new RangeError(`leafIndex ${leafIndex} out of bounds [0, ${leafCount - 1}]`);
   }
 
   const steps: MerkleProofStep[] = [];
+  const siblings: string[] = [];
   let currentIndex = leafIndex;
 
   for (let l = 0; l < layers.length - 1; l++) {
@@ -132,9 +154,11 @@ export function generateMerkleProof(
 
     if (siblingIndex < layer.length) {
       // Sibling exists
+      const siblingHex = '0x' + layer[siblingIndex].toString('hex');
+      siblings.push(siblingHex);
       steps.push({
         position: isRightChild ? 'left' : 'right',
-        sibling: '0x' + layer[siblingIndex].toString('hex')
+        sibling: siblingHex
       });
     } else {
       // LOCKED: odd node promoted unchanged (never duplicated) -> no sibling
@@ -152,21 +176,142 @@ export function generateMerkleProof(
 
   return {
     leafIndex,
+    leafCount,
     leafHash,
     root,
+    siblings,
     steps
   };
 }
 
+/** Backward compatibility alias */
+export const generateMerkleProof = getProof;
+
 /**
  * Verifies a Merkle inclusion proof against an expected Merkle root.
  * 
- * Applies the locked rules:
- * - position 'right': curr = SHA256(0x01 || curr || sibling)
- * - position 'left': curr = SHA256(0x01 || sibling || curr)
- * - position 'promoted': curr = curr (unchanged)
+ * SPECIFICATION:
+ * A proof needs (leafIndex, leafCount) so the verifier knows which levels have no sibling.
+ * 
+ * Supports:
+ * 1. Object parameter: verifyProof(proof, expectedRoot?)
+ * 2. Positional parameters: verifyProof(leafHash, proofOrSteps, expectedRoot, leafIndex?, leafCount?)
  */
-export function verifyMerkleProof(
+export function verifyProof(
+  leafHashOrProof: Uint8Array | Buffer | string | MerkleProof | { leafIndex: number; leafCount: number; leafHash: string; siblings: string[]; root?: string },
+  proofOrExpectedRoot?: MerkleProofStep[] | string[] | Uint8Array | Buffer | string,
+  expectedRootParam?: Uint8Array | Buffer | string,
+  leafIndexParam?: number,
+  leafCountParam?: number
+): boolean {
+  try {
+    // Mode A: Called with MerkleProof object as first argument
+    if (typeof leafHashOrProof === 'object' && leafHashOrProof !== null && 'leafIndex' in leafHashOrProof && 'leafCount' in leafHashOrProof) {
+      const p = leafHashOrProof as { leafIndex: number; leafCount: number; leafHash: string; siblings?: string[]; steps?: MerkleProofStep[]; root?: string };
+      const expectedRoot = expectedRootParam || (typeof proofOrExpectedRoot === 'string' || Buffer.isBuffer(proofOrExpectedRoot) ? proofOrExpectedRoot : p.root);
+      if (!expectedRoot) return false;
+
+      // Verify using (leafIndex, leafCount, siblings)
+      if (Array.isArray(p.siblings)) {
+        return verifyProofWithIndices(p.leafHash, p.siblings, expectedRoot, p.leafIndex, p.leafCount);
+      }
+      // Or fallback to steps
+      if (Array.isArray(p.steps)) {
+        return verifyProofWithSteps(p.leafHash, p.steps, expectedRoot);
+      }
+      return false;
+    }
+
+    // Mode B: Called with explicit (leafHash, proof, expectedRoot, leafIndex, leafCount)
+    const leafHash = leafHashOrProof as Uint8Array | Buffer | string;
+    const expectedRoot = expectedRootParam;
+    if (!expectedRoot) return false;
+
+    // If proofOrExpectedRoot is array of MerkleProofStep objects
+    if (Array.isArray(proofOrExpectedRoot) && proofOrExpectedRoot.length > 0 && typeof proofOrExpectedRoot[0] === 'object' && 'position' in proofOrExpectedRoot[0]) {
+      return verifyProofWithSteps(leafHash, proofOrExpectedRoot as MerkleProofStep[], expectedRoot);
+    }
+
+    // If proofOrExpectedRoot is an array of sibling hex strings with leafIndex & leafCount provided
+    if (Array.isArray(proofOrExpectedRoot) && leafIndexParam !== undefined && leafCountParam !== undefined) {
+      return verifyProofWithIndices(leafHash, proofOrExpectedRoot as string[], expectedRoot, leafIndexParam, leafCountParam);
+    }
+
+    // If proofOrExpectedRoot is a MerkleProof object
+    if (typeof proofOrExpectedRoot === 'object' && proofOrExpectedRoot !== null && 'siblings' in proofOrExpectedRoot) {
+      const p = proofOrExpectedRoot as MerkleProof;
+      return verifyProofWithIndices(leafHash, p.siblings, expectedRoot, p.leafIndex, p.leafCount);
+    }
+
+    return false;
+  } catch {
+    return false;
+  }
+}
+
+/** Backward compatibility alias */
+export const verifyMerkleProof = verifyProof;
+
+/**
+ * Deterministic traversal verification using (leafIndex, leafCount) and siblings array.
+ * 
+ * Traverses layer by layer:
+ * - If current layer count is odd and index == count - 1: promoted unchanged (no sibling consumed)
+ * - If index is even: sibling on right
+ * - If index is odd: sibling on left
+ */
+function verifyProofWithIndices(
+  leafHash: Uint8Array | Buffer | string,
+  siblings: string[],
+  expectedRoot: Uint8Array | Buffer | string,
+  leafIndex: number,
+  leafCount: number
+): boolean {
+  if (leafCount <= 0 || leafIndex < 0 || leafIndex >= leafCount) return false;
+
+  let current = toBuffer32(leafHash, 'leafHash');
+  const rootBuf = toBuffer32(expectedRoot, 'expectedRoot');
+
+  let currentCount = BigInt(leafCount);
+  let currentIndex = BigInt(leafIndex);
+  let siblingPtr = 0;
+
+  while (currentCount > 1n) {
+    const isOddLayer = currentCount % 2n === 1n;
+    const isPromotedNode = isOddLayer && currentIndex === currentCount - 1n;
+
+    if (isPromotedNode) {
+      // LOCKED: odd node promoted unchanged (never duplicated); no sibling consumed at this level
+    } else {
+      if (siblingPtr >= siblings.length) {
+        return false; // Sibling missing
+      }
+      const siblingBuf = toBuffer32(siblings[siblingPtr++], `sibling[${siblingPtr - 1}]`);
+      if (currentIndex % 2n === 1n) {
+        // Current is right child, sibling is on left
+        current = hashNode(siblingBuf, current);
+      } else {
+        // Current is left child, sibling is on right
+        current = hashNode(current, siblingBuf);
+      }
+    }
+
+    currentCount = (currentCount + 1n) / 2n;
+    currentIndex = currentIndex / 2n;
+  }
+
+  // Ensure all provided siblings were consumed (no extraneous siblings)
+  if (siblingPtr !== siblings.length) {
+    return false;
+  }
+
+  return current.equals(rootBuf);
+}
+
+/**
+ * Traversal verification using explicit MerkleProofStep[] steps.
+ */
+function verifyProofWithSteps(
   leafHash: Uint8Array | Buffer | string,
   steps: MerkleProofStep[],
   expectedRoot: Uint8Array | Buffer | string
@@ -176,20 +321,15 @@ export function verifyMerkleProof(
 
   for (const step of steps) {
     if (step.position === 'promoted') {
-      // Promoted node remains unchanged at this level
       continue;
     } else if (step.position === 'right') {
-      if (!step.sibling) {
-        throw new Error('Step with position right missing sibling hash');
-      }
-      current = hashInternalNode(current, step.sibling);
+      if (!step.sibling) return false;
+      current = hashNode(current, step.sibling);
     } else if (step.position === 'left') {
-      if (!step.sibling) {
-        throw new Error('Step with position left missing sibling hash');
-      }
-      current = hashInternalNode(step.sibling, current);
+      if (!step.sibling) return false;
+      current = hashNode(step.sibling, current);
     } else {
-      throw new Error(`Unknown Merkle proof step position: ${(step as any).position}`);
+      return false;
     }
   }
 
