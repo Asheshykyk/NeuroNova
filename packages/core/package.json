@@ -13,6 +13,7 @@
     "./keccak": "./src/keccak.ts",
     "./commitment": "./src/commitment.ts",
     "./signer": "./src/signer.ts",
+    "./agent": "./src/agent.ts",
     "./test-vectors": "./src/test-vectors.ts",
     "./abi": "./src/abi/index.ts"
   },

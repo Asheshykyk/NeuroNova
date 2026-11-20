@@ -11,5 +11,6 @@ export * from './merkle.ts';
 export * from './keccak.ts';
 export * from './commitment.ts';
 export * from './signer.ts';
+export * from './agent.ts';
 export * from './test-vectors.ts';
 export * from './abi/index.ts';

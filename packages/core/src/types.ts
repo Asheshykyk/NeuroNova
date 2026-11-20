@@ -5,6 +5,8 @@
  * OWNED BY: Person 1 (branch feature/crypto-contract)
  */
 
+export type SourceIdInput = string | Uint8Array | Buffer;
+
 /**
  * Event envelope input for canonical leaf hashing.
  * 
