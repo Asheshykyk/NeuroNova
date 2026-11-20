@@ -8,10 +8,34 @@ This document turns the four frozen decisions into ready-to-paste coding-assista
 
 ## Frozen decisions
 
-1. **Leaf contents.** Hash the original event bytes exactly as received, plus fixed vault-assigned metadata: `sourceId`, `vaultSequence`, `rawEventLength`, `rawEventBytes`. Never parse or normalise the event. `leafHash = SHA256(0x00 || version || sourceId || vaultSequence || rawEventLength || rawEventBytes)`.
-2. **Odd-leaf rule.** Promote the unpaired node unchanged; never duplicate it. Bind `leafCount` into the signed and on-chain commitment, which includes at least `sourceId`, `sequenceStart`, `sequenceEnd`, `leafCount`, `merkleRoot` and `previousCheckpointHash`.
-3. **Checkpoint mechanism.** A small Solidity contract with `anchorBatch()` and a `BatchAnchored` event. It validates the registered signer, source identity, sequence continuity and duplicate batches. Person 1 owns the contract and ABI; encoding and hashing rules live in the shared `core` package under a versioned specification.
-4. **Signer key custody.** The EIP-712 signing key exists only in the vault environment, never on the host, agent, frontend or in Git. The vault signer and the gas-paying relayer are separate keys. The vault signature proves the vault attested to the batch; it does not prove the original host event was truthful.
+1. **Leaf contents — include identity metadata, but never parse or normalize the event.**
+   Hash the original event bytes exactly as received, along with fixed vault-assigned metadata: `sourceId`, `vaultSequence`, `rawEventLength`, `rawEventBytes`.
+   The raw event remains untouched. We do not hash parsed JSON fields, normalized timestamps, or reconstructed log messages. The metadata identifies which event the bytes represent; it does not replace the original bytes.
+   Canonical binary encoding with version/domain tag and SHA-256:
+   `leafHash = SHA256(0x00 || version || sourceId || vaultSequence || rawEventLength || rawEventBytes)`.
+
+2. **Odd-leaf rule — promote the unpaired node.**
+   When a Merkle-tree level has an odd number of nodes, promote the final unpaired node unchanged to the next level. Do not duplicate it.
+   Bind `leafCount` into the signed and on-chain batch commitment, which makes tree construction and proof interpretation unambiguous. The commitment includes at least:
+   - `sourceId`
+   - `sequenceStart` and `sequenceEnd`
+   - `leafCount`
+   - `merkleRoot`
+   - `previousCheckpointHash` (for continuity chaining)
+
+3. **Checkpoint mechanism — use a small Solidity contract.**
+   Use a small contract with an `anchorBatch()` function and a `BatchAnchored` event.
+   The contract validates the registered signer, source identity, sequence continuity, and duplicate-batch prevention before accepting a checkpoint.
+   Person 1 owns the contract and ABI. The canonical encoding and hashing rules live in the shared `core` package under a versioned specification agreed upon by all four people.
+   Avoid plain transactions with arbitrary data as the primary mechanism because they cannot enforce these on-chain integrity checks.
+
+4. **Signer key custody — vault only.**
+   The EIP-712 signing private key exists only in the vault environment. It must never be present on the monitored host, agent, frontend, or in Git.
+   The vault signer and gas-paying relayer are separate keys:
+   - Vault signer: signs the batch commitment.
+   - Relayer: submits the signed commitment to the blockchain.
+   For the Docker demo: mount the signer secret into the vault container as a secret or read-only file. Keep it out of source control and provide a separate test key for local development.
+   Attestation boundary distinction: the vault signature proves that the vault attested to the batch. It does not, by itself, prove that the original host event was truthful.
 
 ## Assumptions to confirm at G0
 
@@ -30,8 +54,8 @@ These are not approved decisions until the team confirms them.
 
 | Person | Change they must make |
 | --- | --- |
-| P2 (vault) | Store `sourceId`, `vaultSequence` and raw bytes exactly. Call `core` to hash leaves instead of hashing locally. Use `core` to sign. Keep the relayer and signer keys separate. Use the commitment fields `sequenceStart`, `sequenceEnd`, `leafCount` and `previousCheckpointHash`. |
-| P3 (agent) | Preserve raw bytes exactly (no trimming or re-encoding). Agree on A6. The agent holds only its Ed25519 chunk key, never the signer key. |
+| P2 (vault) | Store `sourceId`, `vaultSequence` and raw bytes exactly (never parse or normalize). Call `core` to hash leaves instead of hashing locally. Use `core` to sign. Keep the relayer and signer keys separate. In Docker demo: mount vault signer secret as read-only file/secret, never commit to Git, use separate test key for dev. Use commitment fields `sequenceStart`, `sequenceEnd`, `leafCount` and `previousCheckpointHash`. |
+| P3 (agent) | Preserve raw bytes exactly (no trimming, normalisation, reconstructed messages, or re-encoding). Agree on A6 (one line = one event, delimiter excluded). The agent holds only its Ed25519 chunk key, never the EIP-712 signer key. |
 | P4 (CLI, UI) | Verify with `core` only. The evidence bundle carries version, `sourceId`, `leafCount`, signature, chain ID and contract address. The proof verifier needs `leafCount` and the leaf index. |
 
 ## Shared header
