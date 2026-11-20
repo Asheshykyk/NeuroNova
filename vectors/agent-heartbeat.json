@@ -16,5 +16,51 @@
   "preimageHex": "0xab686f73742d6167656e742d6379707275732d303100000000000000000000000000000000000000011809d1106253b000000000000010000000024f4b",
   "preimageLength": 61,
   "signatureHex": "0x3d0a8568410de33e259cbf33982ee6eb9ed534703d4e57d3abb6aa0054d395373285dd07de386b07a2ac9c8e7b53c01972c13bc82167c89948523f110533c009",
-  "verified": true
+  "verified": true,
+  "tamperCases": [
+    {
+      "field": "heartbeatSequence",
+      "tamperedHeartbeat": {
+        "sourceId": "host-agent-cyprus-01",
+        "heartbeatSequence": 2,
+        "observedAt": 1732145400000000000,
+        "lastByteOffset": 1048576,
+        "status": "OK"
+      },
+      "verified": false
+    },
+    {
+      "field": "observedAt",
+      "tamperedHeartbeat": {
+        "sourceId": "host-agent-cyprus-01",
+        "heartbeatSequence": 1,
+        "observedAt": 1732145500000000000,
+        "lastByteOffset": 1048576,
+        "status": "OK"
+      },
+      "verified": false
+    },
+    {
+      "field": "lastByteOffset",
+      "tamperedHeartbeat": {
+        "sourceId": "host-agent-cyprus-01",
+        "heartbeatSequence": 1,
+        "observedAt": 1732145400000000000,
+        "lastByteOffset": 2097152,
+        "status": "OK"
+      },
+      "verified": false
+    },
+    {
+      "field": "status",
+      "tamperedHeartbeat": {
+        "sourceId": "host-agent-cyprus-01",
+        "heartbeatSequence": 1,
+        "observedAt": 1732145400000000000,
+        "lastByteOffset": 1048576,
+        "status": "DEGRADED"
+      },
+      "verified": false
+    }
+  ]
 }
