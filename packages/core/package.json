@@ -1,0 +1,32 @@
+{
+  "name": "@trusttrace/core",
+  "version": "1.0.0",
+  "description": "TRUSTTRACE Shared Cryptographic Core & EIP-712 / Contract ABI",
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./types": "./src/types.ts",
+    "./canonical": "./src/canonical.ts",
+    "./merkle": "./src/merkle.ts",
+    "./keccak": "./src/keccak.ts",
+    "./commitment": "./src/commitment.ts",
+    "./signer": "./src/signer.ts",
+    "./agent": "./src/agent.ts",
+    "./checkpoint": "./src/checkpoint.ts",
+    "./test-vectors": "./src/test-vectors.ts",
+    "./abi": "./src/abi/index.ts"
+  },
+  "scripts": {
+    "test": "node --experimental-strip-types test/run-tests.ts"
+  },
+  "keywords": [
+    "trusttrace",
+    "sha256",
+    "merkle-tree",
+    "eip-712"
+  ],
+  "author": "Person 1 (feature/crypto-contract)",
+  "license": "UNLICENSED"
+}

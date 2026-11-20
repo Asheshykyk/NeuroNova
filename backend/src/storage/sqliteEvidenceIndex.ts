@@ -1,0 +1,121 @@
+import Database from 'better-sqlite3';
+import type { EvidenceJsonlRecord } from './types.ts';
+
+export interface IndexedEvidenceRecord {
+  vaultSequence: bigint;
+  sourceId: string;
+  receiptTimestamp: string;
+  segmentName: string;
+  lineOffset: number;
+  rawEventLength: number;
+  deliveryId: string | null;
+}
+
+export class SqliteEvidenceIndex {
+  private readonly db: Database.Database;
+
+  constructor(databasePath: string) {
+    this.db = new Database(databasePath);
+    this.db.pragma('journal_mode = WAL');
+    this.db.pragma('synchronous = FULL');
+    this.db.exec(`
+      CREATE TABLE IF NOT EXISTS evidence_records (
+        source_id TEXT NOT NULL,
+        vault_sequence TEXT NOT NULL,
+        receipt_timestamp TEXT NOT NULL,
+        raw_event_length INTEGER NOT NULL,
+        segment_name TEXT NOT NULL,
+        line_offset INTEGER NOT NULL,
+        delivery_id TEXT,
+        PRIMARY KEY (source_id, vault_sequence)
+      );
+
+      CREATE UNIQUE INDEX IF NOT EXISTS evidence_records_delivery_id
+        ON evidence_records(delivery_id)
+        WHERE delivery_id IS NOT NULL;
+    `);
+  }
+
+  rebuild(
+    records: Array<EvidenceJsonlRecord & { segmentName: string; lineOffset: number }>,
+    rawBytesByRecord: Buffer[]
+  ): void {
+    const insert = this.db.prepare(`
+      INSERT INTO evidence_records (
+        source_id, vault_sequence, receipt_timestamp, raw_event_length,
+        segment_name, line_offset, delivery_id
+      ) VALUES (?, ?, ?, ?, ?, ?, ?)
+    `);
+
+    const transaction = this.db.transaction(() => {
+      this.db.exec('DELETE FROM evidence_records');
+      for (let index = 0; index < records.length; index += 1) {
+        const record = records[index];
+        insert.run(
+          record.sourceId,
+          record.vaultSequence,
+          record.receiptTimestamp,
+          record.rawEventLength,
+          record.segmentName,
+          record.lineOffset,
+          record.deliveryId ?? null
+        );
+      }
+    });
+
+    transaction();
+  }
+
+  findByDeliveryId(deliveryId: string): IndexedEvidenceRecord | null {
+    const row = this.db.prepare(`
+      SELECT source_id AS sourceId, vault_sequence AS vaultSequence,
+             receipt_timestamp AS receiptTimestamp, segment_name AS segmentName,
+             line_offset AS lineOffset, raw_event_length AS rawEventLength,
+             delivery_id AS deliveryId
+      FROM evidence_records
+      WHERE delivery_id = ?
+    `).get(deliveryId) as
+      | {
+          sourceId: string;
+          vaultSequence: string;
+          receiptTimestamp: string;
+          segmentName: string;
+          lineOffset: number;
+          rawEventLength: number;
+          deliveryId: string;
+        }
+      | undefined;
+
+    if (!row) return null;
+    return {
+      vaultSequence: BigInt(row.vaultSequence),
+      sourceId: row.sourceId,
+      receiptTimestamp: row.receiptTimestamp,
+      segmentName: row.segmentName,
+      lineOffset: row.lineOffset,
+      rawEventLength: row.rawEventLength,
+      deliveryId: row.deliveryId
+    };
+  }
+
+  add(record: EvidenceJsonlRecord, segmentName: string, lineOffset: number): void {
+    this.db.prepare(`
+      INSERT INTO evidence_records (
+        source_id, vault_sequence, receipt_timestamp, raw_event_length,
+        segment_name, line_offset, delivery_id
+      ) VALUES (?, ?, ?, ?, ?, ?, ?)
+    `).run(
+      record.sourceId,
+      record.vaultSequence,
+      record.receiptTimestamp,
+      record.rawEventLength,
+      segmentName,
+      lineOffset,
+      record.deliveryId ?? null
+    );
+  }
+
+  close(): void {
+    this.db.close();
+  }
+}

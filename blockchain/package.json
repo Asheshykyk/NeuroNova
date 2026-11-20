@@ -1,0 +1,22 @@
+{
+  "name": "@trusttrace/blockchain",
+  "version": "1.0.0",
+  "description": "TRUSTTRACE Smart Contracts, Hardhat Environment & Deployment Scripts",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "compile": "hardhat compile",
+    "test": "node --experimental-strip-types test/contract-standalone.test.ts",
+    "test:hardhat": "hardhat test",
+    "deploy:local": "hardhat run scripts/deploy.ts --network localhost",
+    "deploy:amoy": "hardhat run scripts/deploy.ts --network amoy"
+  },
+  "dependencies": {
+    "@openzeppelin/contracts": "^5.0.2"
+  },
+  "devDependencies": {
+    "@nomicfoundation/hardhat-toolbox": "^5.0.0",
+    "hardhat": "^2.22.0",
+    "typescript": "^5.4.5"
+  }
+}
