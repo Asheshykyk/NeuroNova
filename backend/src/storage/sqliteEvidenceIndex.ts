@@ -9,6 +9,10 @@ export interface IndexedEvidenceRecord {
   lineOffset: number;
   rawEventLength: number;
   deliveryId: string | null;
+  streamId: string | null;
+  fileIdentity: string | null;
+  byteOffset: string | null;
+  observedAt: string | null;
 }
 
 export class SqliteEvidenceIndex {
@@ -27,6 +31,10 @@ export class SqliteEvidenceIndex {
         segment_name TEXT NOT NULL,
         line_offset INTEGER NOT NULL,
         delivery_id TEXT,
+        stream_id TEXT,
+        file_identity TEXT,
+        byte_offset TEXT,
+        observed_at TEXT,
         PRIMARY KEY (source_id, vault_sequence)
       );
 
@@ -34,6 +42,19 @@ export class SqliteEvidenceIndex {
         ON evidence_records(delivery_id)
         WHERE delivery_id IS NOT NULL;
     `);
+
+    const columns = this.db.prepare('PRAGMA table_info(evidence_records)').all() as Array<{ name: string }>;
+    const existing = new Set(columns.map((column) => column.name));
+    for (const [name, type] of [
+      ['stream_id', 'TEXT'],
+      ['file_identity', 'TEXT'],
+      ['byte_offset', 'TEXT'],
+      ['observed_at', 'TEXT']
+    ] as const) {
+      if (!existing.has(name)) {
+        this.db.exec(`ALTER TABLE evidence_records ADD COLUMN ${name} ${type}`);
+      }
+    }
   }
 
   rebuild(
@@ -43,8 +64,9 @@ export class SqliteEvidenceIndex {
     const insert = this.db.prepare(`
       INSERT INTO evidence_records (
         source_id, vault_sequence, receipt_timestamp, raw_event_length,
-        segment_name, line_offset, delivery_id
-      ) VALUES (?, ?, ?, ?, ?, ?, ?)
+        segment_name, line_offset, delivery_id,
+        stream_id, file_identity, byte_offset, observed_at
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `);
 
     const transaction = this.db.transaction(() => {
@@ -58,7 +80,11 @@ export class SqliteEvidenceIndex {
           record.rawEventLength,
           record.segmentName,
           record.lineOffset,
-          record.deliveryId ?? null
+          record.deliveryId ?? null,
+          record.streamId ?? null,
+          record.fileIdentity ?? null,
+          record.byteOffset ?? null,
+          record.observedAt ?? null
         );
       }
     });
@@ -71,7 +97,9 @@ export class SqliteEvidenceIndex {
       SELECT source_id AS sourceId, vault_sequence AS vaultSequence,
              receipt_timestamp AS receiptTimestamp, segment_name AS segmentName,
              line_offset AS lineOffset, raw_event_length AS rawEventLength,
-             delivery_id AS deliveryId
+             delivery_id AS deliveryId, stream_id AS streamId,
+             file_identity AS fileIdentity, byte_offset AS byteOffset,
+             observed_at AS observedAt
       FROM evidence_records
       WHERE delivery_id = ?
     `).get(deliveryId) as
@@ -83,6 +111,10 @@ export class SqliteEvidenceIndex {
           lineOffset: number;
           rawEventLength: number;
           deliveryId: string;
+          streamId: string | null;
+          fileIdentity: string | null;
+          byteOffset: string | null;
+          observedAt: string | null;
         }
       | undefined;
 
@@ -94,7 +126,11 @@ export class SqliteEvidenceIndex {
       segmentName: row.segmentName,
       lineOffset: row.lineOffset,
       rawEventLength: row.rawEventLength,
-      deliveryId: row.deliveryId
+      deliveryId: row.deliveryId,
+      streamId: row.streamId,
+      fileIdentity: row.fileIdentity,
+      byteOffset: row.byteOffset,
+      observedAt: row.observedAt
     };
   }
 
@@ -102,8 +138,9 @@ export class SqliteEvidenceIndex {
     this.db.prepare(`
       INSERT INTO evidence_records (
         source_id, vault_sequence, receipt_timestamp, raw_event_length,
-        segment_name, line_offset, delivery_id
-      ) VALUES (?, ?, ?, ?, ?, ?, ?)
+        segment_name, line_offset, delivery_id,
+        stream_id, file_identity, byte_offset, observed_at
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `).run(
       record.sourceId,
       record.vaultSequence,
@@ -111,7 +148,11 @@ export class SqliteEvidenceIndex {
       record.rawEventLength,
       segmentName,
       lineOffset,
-      record.deliveryId ?? null
+      record.deliveryId ?? null,
+      record.streamId ?? null,
+      record.fileIdentity ?? null,
+      record.byteOffset ?? null,
+      record.observedAt ?? null
     );
   }
 

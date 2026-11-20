@@ -88,6 +88,10 @@ export class EvidenceStore {
   private readonly deliveryRecords = new Map<string, {
     sourceId: string;
     rawBytes: Buffer;
+    streamId: string;
+    fileIdentity: string;
+    byteOffset: bigint;
+    observedAt: bigint;
     receipt: EvidenceReceipt;
   }>();
   private activeSegmentName = '';
@@ -204,6 +208,14 @@ export class EvidenceStore {
           if (!existing.rawBytes.equals(rawBytes)) {
             throw new Error(`Delivery ID conflict: ${deliveryId} has already been used with distinct raw event bytes`);
           }
+          if (
+            existing.streamId !== (request.streamId ?? '') ||
+            existing.fileIdentity !== (request.fileIdentity ?? '') ||
+            existing.byteOffset !== (request.byteOffset ?? 0n) ||
+            existing.observedAt !== (request.observedAt ?? 0n)
+          ) {
+            throw new Error(`Delivery ID conflict: ${deliveryId} has already been used with different signed metadata`);
+          }
           duplicateReceipt = { ...existing.receipt, duplicate: true };
         }
       }
@@ -221,7 +233,11 @@ export class EvidenceStore {
         rawEventEncoding: 'base64',
         rawEventBytesBase64: rawBytes.toString('base64'),
         rawEventLength: rawBytes.length,
-        ...(request.deliveryId === undefined ? {} : { deliveryId: this.validateDeliveryId(request.deliveryId) })
+        ...(request.deliveryId === undefined ? {} : { deliveryId: this.validateDeliveryId(request.deliveryId) }),
+        ...(request.streamId === undefined ? {} : { streamId: request.streamId }),
+        ...(request.fileIdentity === undefined ? {} : { fileIdentity: request.fileIdentity }),
+        ...(request.byteOffset === undefined ? {} : { byteOffset: request.byteOffset.toString() }),
+        ...(request.observedAt === undefined ? {} : { observedAt: request.observedAt.toString() })
       };
 
       const segmentName = this.chooseSegment(record);
@@ -246,7 +262,12 @@ export class EvidenceStore {
         receiptTimestamp,
         rawEventLength: rawBytes.length,
         segmentName,
-        duplicate: false
+        duplicate: false,
+        ...(request.deliveryId === undefined ? {} : { deliveryId: record.deliveryId }),
+        ...(request.streamId === undefined ? {} : { streamId: request.streamId }),
+        ...(request.fileIdentity === undefined ? {} : { fileIdentity: request.fileIdentity }),
+        ...(request.byteOffset === undefined ? {} : { byteOffset: request.byteOffset }),
+        ...(request.observedAt === undefined ? {} : { observedAt: request.observedAt })
       };
 
       // JSONL and fsync have succeeded. Durable state is authoritative now.
@@ -255,6 +276,10 @@ export class EvidenceStore {
         this.deliveryRecords.set(record.deliveryId, {
           sourceId,
           rawBytes: Buffer.from(rawBytes),
+          streamId: request.streamId ?? '',
+          fileIdentity: request.fileIdentity ?? '',
+          byteOffset: request.byteOffset ?? 0n,
+          observedAt: request.observedAt ?? 0n,
           receipt
         });
       }
@@ -420,6 +445,19 @@ export class EvidenceStore {
         throw new Error('Invalid evidence record: invalid deliveryId');
       }
     }
+    if (record.streamId !== undefined && typeof record.streamId !== 'string') {
+      throw new Error('Invalid evidence record: invalid streamId');
+    }
+    if (record.fileIdentity !== undefined && typeof record.fileIdentity !== 'string') {
+      throw new Error('Invalid evidence record: invalid fileIdentity');
+    }
+    for (const field of ['byteOffset', 'observedAt'] as const) {
+      if (record[field] !== undefined) {
+        if (typeof record[field] !== 'string' || !/^\d+$/.test(record[field] as string)) {
+          throw new Error(`Invalid evidence record: invalid ${field}`);
+        }
+      }
+    }
 
     return record as EvidenceJsonlRecord;
   }
@@ -493,9 +531,20 @@ export class EvidenceStore {
       }
 
       if (record.deliveryId) {
+        const streamId = record.streamId ?? '';
+        const fileIdentity = record.fileIdentity ?? '';
+        const byteOffset = record.byteOffset === undefined ? 0n : BigInt(record.byteOffset);
+        const observedAt = record.observedAt === undefined ? 0n : BigInt(record.observedAt);
         const existing = this.deliveryRecords.get(record.deliveryId);
         if (existing) {
-          if (existing.sourceId !== record.sourceId || !existing.rawBytes.equals(rawBytes)) {
+          if (
+            existing.sourceId !== record.sourceId ||
+            !existing.rawBytes.equals(rawBytes) ||
+            existing.streamId !== streamId ||
+            existing.fileIdentity !== fileIdentity ||
+            existing.byteOffset !== byteOffset ||
+            existing.observedAt !== observedAt
+          ) {
             throw new Error(`Conflicting duplicate deliveryId in JSONL: ${record.deliveryId}`);
           }
         } else {
@@ -505,11 +554,20 @@ export class EvidenceStore {
             receiptTimestamp: record.receiptTimestamp,
             rawEventLength: record.rawEventLength,
             segmentName: recovered.segmentName,
-            duplicate: false
+            duplicate: false,
+            deliveryId: record.deliveryId,
+            streamId,
+            fileIdentity,
+            byteOffset,
+            observedAt
           };
           this.deliveryRecords.set(record.deliveryId, {
             sourceId: record.sourceId,
             rawBytes: Buffer.from(rawBytes),
+            streamId,
+            fileIdentity,
+            byteOffset,
+            observedAt,
             receipt
           });
         }

@@ -4,6 +4,10 @@ export interface AppendEvidenceRequest {
   sourceId: SourceIdInput;
   rawEventBytes: Uint8Array | Buffer;
   deliveryId?: string;
+  streamId?: string;
+  fileIdentity?: string;
+  byteOffset?: bigint;
+  observedAt?: bigint;
 }
 
 export interface EvidenceReceipt {
@@ -13,6 +17,11 @@ export interface EvidenceReceipt {
   rawEventLength: number;
   segmentName: string;
   duplicate: boolean;
+  deliveryId?: string;
+  streamId?: string;
+  fileIdentity?: string;
+  byteOffset?: bigint;
+  observedAt?: bigint;
 }
 
 export interface EvidenceIndexStatus {
@@ -30,4 +39,8 @@ export interface EvidenceJsonlRecord {
   rawEventBytesBase64: string;
   rawEventLength: number;
   deliveryId?: string;
+  streamId?: string;
+  fileIdentity?: string;
+  byteOffset?: string;
+  observedAt?: string;
 }
