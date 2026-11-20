@@ -6,7 +6,9 @@
   "workspaces": [
     "packages/*",
     "blockchain",
-    "backend"
+    "backend",
+    "services/*",
+    "apps/*"
   ],
   "scripts": {
     "test": "node --experimental-strip-types packages/core/test/run-tests.ts",
