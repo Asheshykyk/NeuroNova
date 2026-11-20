@@ -5,7 +5,9 @@
   "description": "TRUSTTRACE - Tamper-evident security evidence that survives root compromise (The Big Hack 2.0 - B3)",
   "workspaces": [
     "packages/*",
-    "blockchain"
+    "blockchain",
+    "services/*",
+    "apps/*"
   ],
   "scripts": {
     "test": "node --experimental-strip-types packages/core/test/run-tests.ts",
