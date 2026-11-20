@@ -11,6 +11,7 @@ import {
 } from '../src/commitment.ts';
 import {
   getEthereumAddress,
+  loadPrivateKey,
   recoverCommitmentSigner,
   recoverSignerAddress,
   signBatchCommitment,
@@ -171,5 +172,9 @@ export function runCommitmentTests() {
     'signCommitment must produce valid signature'
   );
 
-  console.log('✓ Commitment, EIP-712 & Vault Signer tests passed (18/18)');
+  // Test 19: loadPrivateKey helper for Docker secret mounting
+  const loadedKey = loadPrivateKey(TEST_VAULT_SIGNER_KEY);
+  assert.strictEqual(loadedKey, TEST_VAULT_SIGNER_KEY.toLowerCase(), 'loadPrivateKey must parse hex string');
+
+  console.log('✓ Commitment, EIP-712 & Vault Signer tests passed (19/19)');
 }

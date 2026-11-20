@@ -19,7 +19,7 @@ try {
   console.log('');
   runCommitmentTests();
   console.log('\n============================================================');
-  console.log('ALL CORE CRYPTO TESTS PASSED SUCCESSFULLY! (39/39 checks)');
+  console.log('ALL CORE CRYPTO TESTS PASSED SUCCESSFULLY! (40/40 checks)');
   console.log('============================================================');
 } catch (err) {
   console.error('\n❌ Test Failure:');
