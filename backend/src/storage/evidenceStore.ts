@@ -239,7 +239,8 @@ export class EvidenceStore {
         ...(request.streamId === undefined ? {} : { streamId: request.streamId }),
         ...(request.fileIdentity === undefined ? {} : { fileIdentity: request.fileIdentity }),
         ...(request.byteOffset === undefined ? {} : { byteOffset: request.byteOffset.toString() }),
-        ...(request.observedAt === undefined ? {} : { observedAt: request.observedAt.toString() })
+        ...(request.observedAt === undefined ? {} : { observedAt: request.observedAt.toString() }),
+        ...(request.observationSource === undefined ? {} : { observationSource: request.observationSource })
       };
 
       const segmentName = this.chooseSegment(record);
@@ -269,7 +270,8 @@ export class EvidenceStore {
         ...(request.streamId === undefined ? {} : { streamId: request.streamId }),
         ...(request.fileIdentity === undefined ? {} : { fileIdentity: request.fileIdentity }),
         ...(request.byteOffset === undefined ? {} : { byteOffset: request.byteOffset }),
-        ...(request.observedAt === undefined ? {} : { observedAt: request.observedAt })
+        ...(request.observedAt === undefined ? {} : { observedAt: request.observedAt }),
+        ...(request.observationSource === undefined ? {} : { observationSource: request.observationSource })
       };
 
       // JSONL and fsync have succeeded. Durable state is authoritative now.
@@ -532,6 +534,11 @@ export class EvidenceStore {
           throw new Error(`Invalid evidence record: invalid ${field}`);
         }
       }
+    }
+    if (record.observationSource !== undefined &&
+        record.observationSource !== 'host-agent' &&
+        record.observationSource !== 'rsyslog-tcp') {
+      throw new Error('Invalid evidence record: invalid observationSource');
     }
 
     return record as EvidenceJsonlRecord;

@@ -111,7 +111,8 @@ export function createIngestHandler(options: IngestionOptions) {
           streamId,
           fileIdentity,
           byteOffset,
-          observedAt
+          observedAt,
+          observationSource: 'host-agent'
         });
       } catch (error) {
         const message = error instanceof Error ? error.message : String(error);

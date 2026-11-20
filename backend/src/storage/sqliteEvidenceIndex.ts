@@ -13,6 +13,7 @@ export interface IndexedEvidenceRecord {
   fileIdentity: string | null;
   byteOffset: string | null;
   observedAt: string | null;
+  observationSource: 'host-agent' | 'rsyslog-tcp' | null;
 }
 
 export class SqliteEvidenceIndex {
@@ -35,6 +36,7 @@ export class SqliteEvidenceIndex {
         file_identity TEXT,
         byte_offset TEXT,
         observed_at TEXT,
+        observation_source TEXT,
         PRIMARY KEY (source_id, vault_sequence)
       );
 
@@ -58,7 +60,8 @@ export class SqliteEvidenceIndex {
       ['stream_id', 'TEXT'],
       ['file_identity', 'TEXT'],
       ['byte_offset', 'TEXT'],
-      ['observed_at', 'TEXT']
+      ['observed_at', 'TEXT'],
+      ['observation_source', 'TEXT']
     ] as const) {
       if (!existing.has(name)) {
         this.db.exec(`ALTER TABLE evidence_records ADD COLUMN ${name} ${type}`);
@@ -74,8 +77,8 @@ export class SqliteEvidenceIndex {
       INSERT INTO evidence_records (
         source_id, vault_sequence, receipt_timestamp, raw_event_length,
         segment_name, line_offset, delivery_id,
-        stream_id, file_identity, byte_offset, observed_at
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        stream_id, file_identity, byte_offset, observed_at, observation_source
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `);
 
     const transaction = this.db.transaction(() => {
@@ -93,7 +96,8 @@ export class SqliteEvidenceIndex {
           record.streamId ?? null,
           record.fileIdentity ?? null,
           record.byteOffset ?? null,
-          record.observedAt ?? null
+          record.observedAt ?? null,
+          record.observationSource ?? null
         );
       }
     });
@@ -108,7 +112,7 @@ export class SqliteEvidenceIndex {
              line_offset AS lineOffset, raw_event_length AS rawEventLength,
              delivery_id AS deliveryId, stream_id AS streamId,
              file_identity AS fileIdentity, byte_offset AS byteOffset,
-             observed_at AS observedAt
+             observed_at AS observedAt, observation_source AS observationSource
       FROM evidence_records
       WHERE delivery_id = ?
     `).get(deliveryId) as
@@ -124,6 +128,7 @@ export class SqliteEvidenceIndex {
           fileIdentity: string | null;
           byteOffset: string | null;
           observedAt: string | null;
+          observationSource: 'host-agent' | 'rsyslog-tcp' | null;
         }
       | undefined;
 
@@ -139,7 +144,8 @@ export class SqliteEvidenceIndex {
       streamId: row.streamId,
       fileIdentity: row.fileIdentity,
       byteOffset: row.byteOffset,
-      observedAt: row.observedAt
+      observedAt: row.observedAt,
+      observationSource: row.observationSource
     };
   }
 
@@ -148,8 +154,8 @@ export class SqliteEvidenceIndex {
       INSERT INTO evidence_records (
         source_id, vault_sequence, receipt_timestamp, raw_event_length,
         segment_name, line_offset, delivery_id,
-        stream_id, file_identity, byte_offset, observed_at
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        stream_id, file_identity, byte_offset, observed_at, observation_source
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `).run(
       record.sourceId,
       record.vaultSequence,
@@ -161,7 +167,8 @@ export class SqliteEvidenceIndex {
       record.streamId ?? null,
       record.fileIdentity ?? null,
       record.byteOffset ?? null,
-      record.observedAt ?? null
+      record.observedAt ?? null,
+      record.observationSource ?? null
     );
   }
 

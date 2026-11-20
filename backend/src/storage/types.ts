@@ -8,6 +8,7 @@ export interface AppendEvidenceRequest {
   fileIdentity?: string;
   byteOffset?: bigint;
   observedAt?: bigint;
+  observationSource?: 'host-agent' | 'rsyslog-tcp';
 }
 
 export interface EvidenceReceipt {
@@ -22,6 +23,7 @@ export interface EvidenceReceipt {
   fileIdentity?: string;
   byteOffset?: bigint;
   observedAt?: bigint;
+  observationSource?: 'host-agent' | 'rsyslog-tcp';
 }
 
 export interface HeartbeatReceipt {
@@ -62,4 +64,5 @@ export interface EvidenceJsonlRecord {
   fileIdentity?: string;
   byteOffset?: string;
   observedAt?: string;
+  observationSource?: 'host-agent' | 'rsyslog-tcp';
 }

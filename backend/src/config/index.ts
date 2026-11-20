@@ -1,7 +1,14 @@
+export interface RsyslogConfig {
+  host: string;
+  port: number;
+  maxFrameBytes: number;
+}
+
 export interface BackendConfig {
   host: string;
   port: number;
   trustedAgentPublicKeys: Map<string, string>;
+  rsyslog: RsyslogConfig;
 }
 
 function readPort(value: string | undefined): number {
@@ -12,6 +19,24 @@ function readPort(value: string | undefined): number {
     throw new Error(`Invalid BACKEND_PORT: ${value}`);
   }
   return port;
+}
+
+function readPortWithName(value: string | undefined, name: string, defaultValue: number): number {
+  if (value === undefined || value.trim() === '') return defaultValue;
+  const parsed = Number(value);
+  if (!Number.isInteger(parsed) || parsed < 1 || parsed > 65535) {
+    throw new Error(`Invalid ${name}: ${value}`);
+  }
+  return parsed;
+}
+
+function readPositiveInteger(value: string | undefined, name: string, defaultValue: number): number {
+  if (value === undefined || value.trim() === '') return defaultValue;
+  const parsed = Number(value);
+  if (!Number.isSafeInteger(parsed) || parsed < 1) {
+    throw new Error(`Invalid ${name}: ${value}`);
+  }
+  return parsed;
 }
 
 function readTrustedAgentPublicKeys(): Map<string, string> {
@@ -38,5 +63,10 @@ function readTrustedAgentPublicKeys(): Map<string, string> {
 export const config: BackendConfig = {
   host: process.env.BACKEND_HOST?.trim() || '127.0.0.1',
   port: readPort(process.env.BACKEND_PORT),
-  trustedAgentPublicKeys: readTrustedAgentPublicKeys()
+  trustedAgentPublicKeys: readTrustedAgentPublicKeys(),
+  rsyslog: {
+    host: process.env.RSYSLOG_HOST?.trim() || '127.0.0.1',
+    port: readPortWithName(process.env.RSYSLOG_PORT, 'RSYSLOG_PORT', 1514),
+    maxFrameBytes: readPositiveInteger(process.env.RSYSLOG_MAX_FRAME_BYTES, 'RSYSLOG_MAX_FRAME_BYTES', 1024 * 1024)
+  }
 };
