@@ -1,0 +1,26 @@
+{
+  "name": "trusttrace",
+  "version": "1.0.0",
+  "private": true,
+  "description": "TRUSTTRACE - Tamper-evident security evidence that survives root compromise (The Big Hack 2.0 - B3)",
+  "workspaces": [
+    "packages/*",
+    "blockchain"
+  ],
+  "scripts": {
+    "test": "node --experimental-strip-types packages/core/test/run-tests.ts",
+    "test:core": "node --experimental-strip-types packages/core/test/run-tests.ts",
+    "test:blockchain": "node --experimental-strip-types blockchain/test/contract-standalone.test.ts",
+    "test:all": "npm run test:core && npm run test:blockchain"
+  },
+  "type": "module",
+  "keywords": [
+    "trusttrace",
+    "merkle",
+    "eip-712",
+    "evidence-anchor",
+    "tamper-evident"
+  ],
+  "author": "TRUSTTRACE Team",
+  "license": "UNLICENSED"
+}

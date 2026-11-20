@@ -1,0 +1,651 @@
+{
+  "1": {
+    "leafCount": 1,
+    "description": "Merkle tree with 1 leaf/leaves",
+    "events": [
+      {
+        "version": 1,
+        "sourceId": "source-01",
+        "vaultSequence": 1,
+        "rawEventBytes": "{\"event\":\"sshd_auth_failure\",\"user\":\"root\",\"ip\":\"192.168.1.10\"}"
+      }
+    ],
+    "leafHashes": [
+      "0xee4391bfb522f6cc84a209c9b49ced7ae72edf90eab7027f7903b42203bdc06f"
+    ],
+    "root": "0xee4391bfb522f6cc84a209c9b49ced7ae72edf90eab7027f7903b42203bdc06f",
+    "proofs": [
+      {
+        "leafIndex": 0,
+        "leafCount": 1,
+        "leafHash": "0xee4391bfb522f6cc84a209c9b49ced7ae72edf90eab7027f7903b42203bdc06f",
+        "root": "0xee4391bfb522f6cc84a209c9b49ced7ae72edf90eab7027f7903b42203bdc06f",
+        "siblings": [],
+        "valid": true
+      }
+    ],
+    "negativeCases": [
+      {
+        "name": "modified_leaf",
+        "description": "Verification must fail when leafHash is tampered",
+        "proof": {
+          "leafIndex": 0,
+          "leafCount": 1,
+          "leafHash": "0xbaadf00dbaadf00dbaadf00dbaadf00dbaadf00dbaadf00dbaadf00dbaadf00d",
+          "root": "0xee4391bfb522f6cc84a209c9b49ced7ae72edf90eab7027f7903b42203bdc06f",
+          "siblings": []
+        },
+        "expectedValid": false
+      },
+      {
+        "name": "wrong_leaf_count",
+        "description": "Verification must fail when leafCount is altered, causing path parity mismatch",
+        "proof": {
+          "leafIndex": 0,
+          "leafCount": 2,
+          "leafHash": "0xee4391bfb522f6cc84a209c9b49ced7ae72edf90eab7027f7903b42203bdc06f",
+          "root": "0xee4391bfb522f6cc84a209c9b49ced7ae72edf90eab7027f7903b42203bdc06f",
+          "siblings": []
+        },
+        "expectedValid": false
+      }
+    ]
+  },
+  "2": {
+    "leafCount": 2,
+    "description": "Merkle tree with 2 leaf/leaves",
+    "events": [
+      {
+        "version": 1,
+        "sourceId": "source-01",
+        "vaultSequence": 1,
+        "rawEventBytes": "{\"event\":\"sshd_auth_failure\",\"user\":\"root\",\"ip\":\"192.168.1.10\"}"
+      },
+      {
+        "version": 1,
+        "sourceId": "source-01",
+        "vaultSequence": 2,
+        "rawEventBytes": "{\"event\":\"sshd_auth_failure\",\"user\":\"admin\",\"ip\":\"192.168.1.10\"}"
+      }
+    ],
+    "leafHashes": [
+      "0xee4391bfb522f6cc84a209c9b49ced7ae72edf90eab7027f7903b42203bdc06f",
+      "0xb52bb99204d5e55e0b16e76f89e55e5327af6f26ed7c15c8ca9dacad1fb790dc"
+    ],
+    "root": "0xb6a95d5fc94c1e32057aefdfdfe5b59c2ea1465bf86dc011d5e26f463185f51d",
+    "proofs": [
+      {
+        "leafIndex": 0,
+        "leafCount": 2,
+        "leafHash": "0xee4391bfb522f6cc84a209c9b49ced7ae72edf90eab7027f7903b42203bdc06f",
+        "root": "0xb6a95d5fc94c1e32057aefdfdfe5b59c2ea1465bf86dc011d5e26f463185f51d",
+        "siblings": [
+          "0xb52bb99204d5e55e0b16e76f89e55e5327af6f26ed7c15c8ca9dacad1fb790dc"
+        ],
+        "valid": true
+      },
+      {
+        "leafIndex": 1,
+        "leafCount": 2,
+        "leafHash": "0xb52bb99204d5e55e0b16e76f89e55e5327af6f26ed7c15c8ca9dacad1fb790dc",
+        "root": "0xb6a95d5fc94c1e32057aefdfdfe5b59c2ea1465bf86dc011d5e26f463185f51d",
+        "siblings": [
+          "0xee4391bfb522f6cc84a209c9b49ced7ae72edf90eab7027f7903b42203bdc06f"
+        ],
+        "valid": true
+      }
+    ],
+    "negativeCases": [
+      {
+        "name": "modified_leaf",
+        "description": "Verification must fail when leafHash is tampered",
+        "proof": {
+          "leafIndex": 0,
+          "leafCount": 2,
+          "leafHash": "0xbaadf00dbaadf00dbaadf00dbaadf00dbaadf00dbaadf00dbaadf00dbaadf00d",
+          "root": "0xb6a95d5fc94c1e32057aefdfdfe5b59c2ea1465bf86dc011d5e26f463185f51d",
+          "siblings": [
+            "0xb52bb99204d5e55e0b16e76f89e55e5327af6f26ed7c15c8ca9dacad1fb790dc"
+          ]
+        },
+        "expectedValid": false
+      },
+      {
+        "name": "wrong_leaf_count",
+        "description": "Verification must fail when leafCount is altered, causing path parity mismatch",
+        "proof": {
+          "leafIndex": 1,
+          "leafCount": 1,
+          "leafHash": "0xb52bb99204d5e55e0b16e76f89e55e5327af6f26ed7c15c8ca9dacad1fb790dc",
+          "root": "0xb6a95d5fc94c1e32057aefdfdfe5b59c2ea1465bf86dc011d5e26f463185f51d",
+          "siblings": [
+            "0xee4391bfb522f6cc84a209c9b49ced7ae72edf90eab7027f7903b42203bdc06f"
+          ]
+        },
+        "expectedValid": false
+      }
+    ]
+  },
+  "3": {
+    "leafCount": 3,
+    "description": "Merkle tree with 3 leaf/leaves (odd node promoted unchanged)",
+    "events": [
+      {
+        "version": 1,
+        "sourceId": "source-01",
+        "vaultSequence": 1,
+        "rawEventBytes": "{\"event\":\"sshd_auth_failure\",\"user\":\"root\",\"ip\":\"192.168.1.10\"}"
+      },
+      {
+        "version": 1,
+        "sourceId": "source-01",
+        "vaultSequence": 2,
+        "rawEventBytes": "{\"event\":\"sshd_auth_failure\",\"user\":\"admin\",\"ip\":\"192.168.1.10\"}"
+      },
+      {
+        "version": 1,
+        "sourceId": "source-01",
+        "vaultSequence": 3,
+        "rawEventBytes": "{\"event\":\"sshd_auth_success\",\"user\":\"ubuntu\",\"ip\":\"192.168.1.50\"}"
+      }
+    ],
+    "leafHashes": [
+      "0xee4391bfb522f6cc84a209c9b49ced7ae72edf90eab7027f7903b42203bdc06f",
+      "0xb52bb99204d5e55e0b16e76f89e55e5327af6f26ed7c15c8ca9dacad1fb790dc",
+      "0xcf1aa05576c348f84a3e49a801bc2cbb338d8361e57962a4fe79a8fef49533cc"
+    ],
+    "root": "0xa2c72d902b14379b0c96090a860a7eed9ba90614a870b014aa27245089773f6c",
+    "proofs": [
+      {
+        "leafIndex": 0,
+        "leafCount": 3,
+        "leafHash": "0xee4391bfb522f6cc84a209c9b49ced7ae72edf90eab7027f7903b42203bdc06f",
+        "root": "0xa2c72d902b14379b0c96090a860a7eed9ba90614a870b014aa27245089773f6c",
+        "siblings": [
+          "0xb52bb99204d5e55e0b16e76f89e55e5327af6f26ed7c15c8ca9dacad1fb790dc",
+          "0xcf1aa05576c348f84a3e49a801bc2cbb338d8361e57962a4fe79a8fef49533cc"
+        ],
+        "valid": true
+      },
+      {
+        "leafIndex": 1,
+        "leafCount": 3,
+        "leafHash": "0xb52bb99204d5e55e0b16e76f89e55e5327af6f26ed7c15c8ca9dacad1fb790dc",
+        "root": "0xa2c72d902b14379b0c96090a860a7eed9ba90614a870b014aa27245089773f6c",
+        "siblings": [
+          "0xee4391bfb522f6cc84a209c9b49ced7ae72edf90eab7027f7903b42203bdc06f",
+          "0xcf1aa05576c348f84a3e49a801bc2cbb338d8361e57962a4fe79a8fef49533cc"
+        ],
+        "valid": true
+      },
+      {
+        "leafIndex": 2,
+        "leafCount": 3,
+        "leafHash": "0xcf1aa05576c348f84a3e49a801bc2cbb338d8361e57962a4fe79a8fef49533cc",
+        "root": "0xa2c72d902b14379b0c96090a860a7eed9ba90614a870b014aa27245089773f6c",
+        "siblings": [
+          "0xb6a95d5fc94c1e32057aefdfdfe5b59c2ea1465bf86dc011d5e26f463185f51d"
+        ],
+        "valid": true
+      }
+    ],
+    "negativeCases": [
+      {
+        "name": "modified_leaf",
+        "description": "Verification must fail when leafHash is tampered",
+        "proof": {
+          "leafIndex": 0,
+          "leafCount": 3,
+          "leafHash": "0xbaadf00dbaadf00dbaadf00dbaadf00dbaadf00dbaadf00dbaadf00dbaadf00d",
+          "root": "0xa2c72d902b14379b0c96090a860a7eed9ba90614a870b014aa27245089773f6c",
+          "siblings": [
+            "0xb52bb99204d5e55e0b16e76f89e55e5327af6f26ed7c15c8ca9dacad1fb790dc",
+            "0xcf1aa05576c348f84a3e49a801bc2cbb338d8361e57962a4fe79a8fef49533cc"
+          ]
+        },
+        "expectedValid": false
+      },
+      {
+        "name": "wrong_leaf_count",
+        "description": "Verification must fail when leafCount is altered, causing path parity mismatch",
+        "proof": {
+          "leafIndex": 2,
+          "leafCount": 4,
+          "leafHash": "0xcf1aa05576c348f84a3e49a801bc2cbb338d8361e57962a4fe79a8fef49533cc",
+          "root": "0xa2c72d902b14379b0c96090a860a7eed9ba90614a870b014aa27245089773f6c",
+          "siblings": [
+            "0xb6a95d5fc94c1e32057aefdfdfe5b59c2ea1465bf86dc011d5e26f463185f51d"
+          ]
+        },
+        "expectedValid": false
+      }
+    ]
+  },
+  "4": {
+    "leafCount": 4,
+    "description": "Merkle tree with 4 leaf/leaves",
+    "events": [
+      {
+        "version": 1,
+        "sourceId": "source-01",
+        "vaultSequence": 1,
+        "rawEventBytes": "{\"event\":\"sshd_auth_failure\",\"user\":\"root\",\"ip\":\"192.168.1.10\"}"
+      },
+      {
+        "version": 1,
+        "sourceId": "source-01",
+        "vaultSequence": 2,
+        "rawEventBytes": "{\"event\":\"sshd_auth_failure\",\"user\":\"admin\",\"ip\":\"192.168.1.10\"}"
+      },
+      {
+        "version": 1,
+        "sourceId": "source-01",
+        "vaultSequence": 3,
+        "rawEventBytes": "{\"event\":\"sshd_auth_success\",\"user\":\"ubuntu\",\"ip\":\"192.168.1.50\"}"
+      },
+      {
+        "version": 1,
+        "sourceId": "source-01",
+        "vaultSequence": 4,
+        "rawEventBytes": "{\"event\":\"sudo_command\",\"user\":\"ubuntu\",\"command\":\"/bin/systemctl restart nginx\"}"
+      }
+    ],
+    "leafHashes": [
+      "0xee4391bfb522f6cc84a209c9b49ced7ae72edf90eab7027f7903b42203bdc06f",
+      "0xb52bb99204d5e55e0b16e76f89e55e5327af6f26ed7c15c8ca9dacad1fb790dc",
+      "0xcf1aa05576c348f84a3e49a801bc2cbb338d8361e57962a4fe79a8fef49533cc",
+      "0x8555921e6cdbd64ae8334764c7874d1910387ef64f0422701e6dbfe10f464640"
+    ],
+    "root": "0x11f3a2f6b4be493aff02739ee27bd2c39ca038fe667a47ec784187004f185973",
+    "proofs": [
+      {
+        "leafIndex": 0,
+        "leafCount": 4,
+        "leafHash": "0xee4391bfb522f6cc84a209c9b49ced7ae72edf90eab7027f7903b42203bdc06f",
+        "root": "0x11f3a2f6b4be493aff02739ee27bd2c39ca038fe667a47ec784187004f185973",
+        "siblings": [
+          "0xb52bb99204d5e55e0b16e76f89e55e5327af6f26ed7c15c8ca9dacad1fb790dc",
+          "0xa00ca6234b92fa5a932adc42a9c21b1bacfee9c5c3c32bbb9942c5931523eea0"
+        ],
+        "valid": true
+      },
+      {
+        "leafIndex": 1,
+        "leafCount": 4,
+        "leafHash": "0xb52bb99204d5e55e0b16e76f89e55e5327af6f26ed7c15c8ca9dacad1fb790dc",
+        "root": "0x11f3a2f6b4be493aff02739ee27bd2c39ca038fe667a47ec784187004f185973",
+        "siblings": [
+          "0xee4391bfb522f6cc84a209c9b49ced7ae72edf90eab7027f7903b42203bdc06f",
+          "0xa00ca6234b92fa5a932adc42a9c21b1bacfee9c5c3c32bbb9942c5931523eea0"
+        ],
+        "valid": true
+      },
+      {
+        "leafIndex": 2,
+        "leafCount": 4,
+        "leafHash": "0xcf1aa05576c348f84a3e49a801bc2cbb338d8361e57962a4fe79a8fef49533cc",
+        "root": "0x11f3a2f6b4be493aff02739ee27bd2c39ca038fe667a47ec784187004f185973",
+        "siblings": [
+          "0x8555921e6cdbd64ae8334764c7874d1910387ef64f0422701e6dbfe10f464640",
+          "0xb6a95d5fc94c1e32057aefdfdfe5b59c2ea1465bf86dc011d5e26f463185f51d"
+        ],
+        "valid": true
+      },
+      {
+        "leafIndex": 3,
+        "leafCount": 4,
+        "leafHash": "0x8555921e6cdbd64ae8334764c7874d1910387ef64f0422701e6dbfe10f464640",
+        "root": "0x11f3a2f6b4be493aff02739ee27bd2c39ca038fe667a47ec784187004f185973",
+        "siblings": [
+          "0xcf1aa05576c348f84a3e49a801bc2cbb338d8361e57962a4fe79a8fef49533cc",
+          "0xb6a95d5fc94c1e32057aefdfdfe5b59c2ea1465bf86dc011d5e26f463185f51d"
+        ],
+        "valid": true
+      }
+    ],
+    "negativeCases": [
+      {
+        "name": "modified_leaf",
+        "description": "Verification must fail when leafHash is tampered",
+        "proof": {
+          "leafIndex": 0,
+          "leafCount": 4,
+          "leafHash": "0xbaadf00dbaadf00dbaadf00dbaadf00dbaadf00dbaadf00dbaadf00dbaadf00d",
+          "root": "0x11f3a2f6b4be493aff02739ee27bd2c39ca038fe667a47ec784187004f185973",
+          "siblings": [
+            "0xb52bb99204d5e55e0b16e76f89e55e5327af6f26ed7c15c8ca9dacad1fb790dc",
+            "0xa00ca6234b92fa5a932adc42a9c21b1bacfee9c5c3c32bbb9942c5931523eea0"
+          ]
+        },
+        "expectedValid": false
+      },
+      {
+        "name": "wrong_leaf_count",
+        "description": "Verification must fail when leafCount is altered, causing path parity mismatch",
+        "proof": {
+          "leafIndex": 3,
+          "leafCount": 3,
+          "leafHash": "0x8555921e6cdbd64ae8334764c7874d1910387ef64f0422701e6dbfe10f464640",
+          "root": "0x11f3a2f6b4be493aff02739ee27bd2c39ca038fe667a47ec784187004f185973",
+          "siblings": [
+            "0xcf1aa05576c348f84a3e49a801bc2cbb338d8361e57962a4fe79a8fef49533cc",
+            "0xb6a95d5fc94c1e32057aefdfdfe5b59c2ea1465bf86dc011d5e26f463185f51d"
+          ]
+        },
+        "expectedValid": false
+      }
+    ]
+  },
+  "5": {
+    "leafCount": 5,
+    "description": "Merkle tree with 5 leaf/leaves (odd node promoted unchanged)",
+    "events": [
+      {
+        "version": 1,
+        "sourceId": "source-01",
+        "vaultSequence": 1,
+        "rawEventBytes": "{\"event\":\"sshd_auth_failure\",\"user\":\"root\",\"ip\":\"192.168.1.10\"}"
+      },
+      {
+        "version": 1,
+        "sourceId": "source-01",
+        "vaultSequence": 2,
+        "rawEventBytes": "{\"event\":\"sshd_auth_failure\",\"user\":\"admin\",\"ip\":\"192.168.1.10\"}"
+      },
+      {
+        "version": 1,
+        "sourceId": "source-01",
+        "vaultSequence": 3,
+        "rawEventBytes": "{\"event\":\"sshd_auth_success\",\"user\":\"ubuntu\",\"ip\":\"192.168.1.50\"}"
+      },
+      {
+        "version": 1,
+        "sourceId": "source-01",
+        "vaultSequence": 4,
+        "rawEventBytes": "{\"event\":\"sudo_command\",\"user\":\"ubuntu\",\"command\":\"/bin/systemctl restart nginx\"}"
+      },
+      {
+        "version": 1,
+        "sourceId": "source-01",
+        "vaultSequence": 5,
+        "rawEventBytes": "{\"event\":\"session_closed\",\"user\":\"ubuntu\",\"duration\":184}"
+      }
+    ],
+    "leafHashes": [
+      "0xee4391bfb522f6cc84a209c9b49ced7ae72edf90eab7027f7903b42203bdc06f",
+      "0xb52bb99204d5e55e0b16e76f89e55e5327af6f26ed7c15c8ca9dacad1fb790dc",
+      "0xcf1aa05576c348f84a3e49a801bc2cbb338d8361e57962a4fe79a8fef49533cc",
+      "0x8555921e6cdbd64ae8334764c7874d1910387ef64f0422701e6dbfe10f464640",
+      "0x0b222b72e2c961ee83bfe9d8ca5a572868fdf33539e566e07f4e7585be8311b5"
+    ],
+    "root": "0x0ca2748ff7d8ff355f06e713fb5fc5c5757b9f6a6b8eead2d8a46594dc8500b9",
+    "proofs": [
+      {
+        "leafIndex": 0,
+        "leafCount": 5,
+        "leafHash": "0xee4391bfb522f6cc84a209c9b49ced7ae72edf90eab7027f7903b42203bdc06f",
+        "root": "0x0ca2748ff7d8ff355f06e713fb5fc5c5757b9f6a6b8eead2d8a46594dc8500b9",
+        "siblings": [
+          "0xb52bb99204d5e55e0b16e76f89e55e5327af6f26ed7c15c8ca9dacad1fb790dc",
+          "0xa00ca6234b92fa5a932adc42a9c21b1bacfee9c5c3c32bbb9942c5931523eea0",
+          "0x0b222b72e2c961ee83bfe9d8ca5a572868fdf33539e566e07f4e7585be8311b5"
+        ],
+        "valid": true
+      },
+      {
+        "leafIndex": 1,
+        "leafCount": 5,
+        "leafHash": "0xb52bb99204d5e55e0b16e76f89e55e5327af6f26ed7c15c8ca9dacad1fb790dc",
+        "root": "0x0ca2748ff7d8ff355f06e713fb5fc5c5757b9f6a6b8eead2d8a46594dc8500b9",
+        "siblings": [
+          "0xee4391bfb522f6cc84a209c9b49ced7ae72edf90eab7027f7903b42203bdc06f",
+          "0xa00ca6234b92fa5a932adc42a9c21b1bacfee9c5c3c32bbb9942c5931523eea0",
+          "0x0b222b72e2c961ee83bfe9d8ca5a572868fdf33539e566e07f4e7585be8311b5"
+        ],
+        "valid": true
+      },
+      {
+        "leafIndex": 2,
+        "leafCount": 5,
+        "leafHash": "0xcf1aa05576c348f84a3e49a801bc2cbb338d8361e57962a4fe79a8fef49533cc",
+        "root": "0x0ca2748ff7d8ff355f06e713fb5fc5c5757b9f6a6b8eead2d8a46594dc8500b9",
+        "siblings": [
+          "0x8555921e6cdbd64ae8334764c7874d1910387ef64f0422701e6dbfe10f464640",
+          "0xb6a95d5fc94c1e32057aefdfdfe5b59c2ea1465bf86dc011d5e26f463185f51d",
+          "0x0b222b72e2c961ee83bfe9d8ca5a572868fdf33539e566e07f4e7585be8311b5"
+        ],
+        "valid": true
+      },
+      {
+        "leafIndex": 3,
+        "leafCount": 5,
+        "leafHash": "0x8555921e6cdbd64ae8334764c7874d1910387ef64f0422701e6dbfe10f464640",
+        "root": "0x0ca2748ff7d8ff355f06e713fb5fc5c5757b9f6a6b8eead2d8a46594dc8500b9",
+        "siblings": [
+          "0xcf1aa05576c348f84a3e49a801bc2cbb338d8361e57962a4fe79a8fef49533cc",
+          "0xb6a95d5fc94c1e32057aefdfdfe5b59c2ea1465bf86dc011d5e26f463185f51d",
+          "0x0b222b72e2c961ee83bfe9d8ca5a572868fdf33539e566e07f4e7585be8311b5"
+        ],
+        "valid": true
+      },
+      {
+        "leafIndex": 4,
+        "leafCount": 5,
+        "leafHash": "0x0b222b72e2c961ee83bfe9d8ca5a572868fdf33539e566e07f4e7585be8311b5",
+        "root": "0x0ca2748ff7d8ff355f06e713fb5fc5c5757b9f6a6b8eead2d8a46594dc8500b9",
+        "siblings": [
+          "0x11f3a2f6b4be493aff02739ee27bd2c39ca038fe667a47ec784187004f185973"
+        ],
+        "valid": true
+      }
+    ],
+    "negativeCases": [
+      {
+        "name": "modified_leaf",
+        "description": "Verification must fail when leafHash is tampered",
+        "proof": {
+          "leafIndex": 0,
+          "leafCount": 5,
+          "leafHash": "0xbaadf00dbaadf00dbaadf00dbaadf00dbaadf00dbaadf00dbaadf00dbaadf00d",
+          "root": "0x0ca2748ff7d8ff355f06e713fb5fc5c5757b9f6a6b8eead2d8a46594dc8500b9",
+          "siblings": [
+            "0xb52bb99204d5e55e0b16e76f89e55e5327af6f26ed7c15c8ca9dacad1fb790dc",
+            "0xa00ca6234b92fa5a932adc42a9c21b1bacfee9c5c3c32bbb9942c5931523eea0",
+            "0x0b222b72e2c961ee83bfe9d8ca5a572868fdf33539e566e07f4e7585be8311b5"
+          ]
+        },
+        "expectedValid": false
+      },
+      {
+        "name": "wrong_leaf_count",
+        "description": "Verification must fail when leafCount is altered, causing path parity mismatch",
+        "proof": {
+          "leafIndex": 4,
+          "leafCount": 6,
+          "leafHash": "0x0b222b72e2c961ee83bfe9d8ca5a572868fdf33539e566e07f4e7585be8311b5",
+          "root": "0x0ca2748ff7d8ff355f06e713fb5fc5c5757b9f6a6b8eead2d8a46594dc8500b9",
+          "siblings": [
+            "0x11f3a2f6b4be493aff02739ee27bd2c39ca038fe667a47ec784187004f185973"
+          ]
+        },
+        "expectedValid": false
+      }
+    ]
+  },
+  "7": {
+    "leafCount": 7,
+    "description": "Merkle tree with 7 leaf/leaves (odd node promoted unchanged)",
+    "events": [
+      {
+        "version": 1,
+        "sourceId": "source-01",
+        "vaultSequence": 1,
+        "rawEventBytes": "{\"event\":\"sshd_auth_failure\",\"user\":\"root\",\"ip\":\"192.168.1.10\"}"
+      },
+      {
+        "version": 1,
+        "sourceId": "source-01",
+        "vaultSequence": 2,
+        "rawEventBytes": "{\"event\":\"sshd_auth_failure\",\"user\":\"admin\",\"ip\":\"192.168.1.10\"}"
+      },
+      {
+        "version": 1,
+        "sourceId": "source-01",
+        "vaultSequence": 3,
+        "rawEventBytes": "{\"event\":\"sshd_auth_success\",\"user\":\"ubuntu\",\"ip\":\"192.168.1.50\"}"
+      },
+      {
+        "version": 1,
+        "sourceId": "source-01",
+        "vaultSequence": 4,
+        "rawEventBytes": "{\"event\":\"sudo_command\",\"user\":\"ubuntu\",\"command\":\"/bin/systemctl restart nginx\"}"
+      },
+      {
+        "version": 1,
+        "sourceId": "source-01",
+        "vaultSequence": 5,
+        "rawEventBytes": "{\"event\":\"session_closed\",\"user\":\"ubuntu\",\"duration\":184}"
+      },
+      {
+        "version": 1,
+        "sourceId": "source-01",
+        "vaultSequence": 6,
+        "rawEventBytes": "{\"event\":\"iptables_drop\",\"src\":\"203.0.113.45\",\"dst\":\"192.168.1.5\",\"port\":22}"
+      },
+      {
+        "version": 1,
+        "sourceId": "source-01",
+        "vaultSequence": 7,
+        "rawEventBytes": "{\"event\":\"kernel_module_load\",\"module\":\"iptable_filter\",\"status\":\"loaded\"}"
+      }
+    ],
+    "leafHashes": [
+      "0xee4391bfb522f6cc84a209c9b49ced7ae72edf90eab7027f7903b42203bdc06f",
+      "0xb52bb99204d5e55e0b16e76f89e55e5327af6f26ed7c15c8ca9dacad1fb790dc",
+      "0xcf1aa05576c348f84a3e49a801bc2cbb338d8361e57962a4fe79a8fef49533cc",
+      "0x8555921e6cdbd64ae8334764c7874d1910387ef64f0422701e6dbfe10f464640",
+      "0x0b222b72e2c961ee83bfe9d8ca5a572868fdf33539e566e07f4e7585be8311b5",
+      "0x7d7d518c2e42a6fcd3a8faf9868cbf4e8f48cf2f8d10cbca06b6a7c9b23e03d5",
+      "0xcae0cb3a617700617763e82651796a0ba6aa10af9e83833dbb9a05659df12722"
+    ],
+    "root": "0x971cd64cee4a664fbea3065cb18576d46199532030fc748874c2607e59cf4586",
+    "proofs": [
+      {
+        "leafIndex": 0,
+        "leafCount": 7,
+        "leafHash": "0xee4391bfb522f6cc84a209c9b49ced7ae72edf90eab7027f7903b42203bdc06f",
+        "root": "0x971cd64cee4a664fbea3065cb18576d46199532030fc748874c2607e59cf4586",
+        "siblings": [
+          "0xb52bb99204d5e55e0b16e76f89e55e5327af6f26ed7c15c8ca9dacad1fb790dc",
+          "0xa00ca6234b92fa5a932adc42a9c21b1bacfee9c5c3c32bbb9942c5931523eea0",
+          "0x737e1a95b193846d5361a731bfc59afd1f847f95bf1ad24937bc8653d9f52d67"
+        ],
+        "valid": true
+      },
+      {
+        "leafIndex": 1,
+        "leafCount": 7,
+        "leafHash": "0xb52bb99204d5e55e0b16e76f89e55e5327af6f26ed7c15c8ca9dacad1fb790dc",
+        "root": "0x971cd64cee4a664fbea3065cb18576d46199532030fc748874c2607e59cf4586",
+        "siblings": [
+          "0xee4391bfb522f6cc84a209c9b49ced7ae72edf90eab7027f7903b42203bdc06f",
+          "0xa00ca6234b92fa5a932adc42a9c21b1bacfee9c5c3c32bbb9942c5931523eea0",
+          "0x737e1a95b193846d5361a731bfc59afd1f847f95bf1ad24937bc8653d9f52d67"
+        ],
+        "valid": true
+      },
+      {
+        "leafIndex": 2,
+        "leafCount": 7,
+        "leafHash": "0xcf1aa05576c348f84a3e49a801bc2cbb338d8361e57962a4fe79a8fef49533cc",
+        "root": "0x971cd64cee4a664fbea3065cb18576d46199532030fc748874c2607e59cf4586",
+        "siblings": [
+          "0x8555921e6cdbd64ae8334764c7874d1910387ef64f0422701e6dbfe10f464640",
+          "0xb6a95d5fc94c1e32057aefdfdfe5b59c2ea1465bf86dc011d5e26f463185f51d",
+          "0x737e1a95b193846d5361a731bfc59afd1f847f95bf1ad24937bc8653d9f52d67"
+        ],
+        "valid": true
+      },
+      {
+        "leafIndex": 3,
+        "leafCount": 7,
+        "leafHash": "0x8555921e6cdbd64ae8334764c7874d1910387ef64f0422701e6dbfe10f464640",
+        "root": "0x971cd64cee4a664fbea3065cb18576d46199532030fc748874c2607e59cf4586",
+        "siblings": [
+          "0xcf1aa05576c348f84a3e49a801bc2cbb338d8361e57962a4fe79a8fef49533cc",
+          "0xb6a95d5fc94c1e32057aefdfdfe5b59c2ea1465bf86dc011d5e26f463185f51d",
+          "0x737e1a95b193846d5361a731bfc59afd1f847f95bf1ad24937bc8653d9f52d67"
+        ],
+        "valid": true
+      },
+      {
+        "leafIndex": 4,
+        "leafCount": 7,
+        "leafHash": "0x0b222b72e2c961ee83bfe9d8ca5a572868fdf33539e566e07f4e7585be8311b5",
+        "root": "0x971cd64cee4a664fbea3065cb18576d46199532030fc748874c2607e59cf4586",
+        "siblings": [
+          "0x7d7d518c2e42a6fcd3a8faf9868cbf4e8f48cf2f8d10cbca06b6a7c9b23e03d5",
+          "0xcae0cb3a617700617763e82651796a0ba6aa10af9e83833dbb9a05659df12722",
+          "0x11f3a2f6b4be493aff02739ee27bd2c39ca038fe667a47ec784187004f185973"
+        ],
+        "valid": true
+      },
+      {
+        "leafIndex": 5,
+        "leafCount": 7,
+        "leafHash": "0x7d7d518c2e42a6fcd3a8faf9868cbf4e8f48cf2f8d10cbca06b6a7c9b23e03d5",
+        "root": "0x971cd64cee4a664fbea3065cb18576d46199532030fc748874c2607e59cf4586",
+        "siblings": [
+          "0x0b222b72e2c961ee83bfe9d8ca5a572868fdf33539e566e07f4e7585be8311b5",
+          "0xcae0cb3a617700617763e82651796a0ba6aa10af9e83833dbb9a05659df12722",
+          "0x11f3a2f6b4be493aff02739ee27bd2c39ca038fe667a47ec784187004f185973"
+        ],
+        "valid": true
+      },
+      {
+        "leafIndex": 6,
+        "leafCount": 7,
+        "leafHash": "0xcae0cb3a617700617763e82651796a0ba6aa10af9e83833dbb9a05659df12722",
+        "root": "0x971cd64cee4a664fbea3065cb18576d46199532030fc748874c2607e59cf4586",
+        "siblings": [
+          "0x2b3fffb39c319131ccfbd298e5b0599148caa99cd5256f372de8a8d50f69a3e4",
+          "0x11f3a2f6b4be493aff02739ee27bd2c39ca038fe667a47ec784187004f185973"
+        ],
+        "valid": true
+      }
+    ],
+    "negativeCases": [
+      {
+        "name": "modified_leaf",
+        "description": "Verification must fail when leafHash is tampered",
+        "proof": {
+          "leafIndex": 0,
+          "leafCount": 7,
+          "leafHash": "0xbaadf00dbaadf00dbaadf00dbaadf00dbaadf00dbaadf00dbaadf00dbaadf00d",
+          "root": "0x971cd64cee4a664fbea3065cb18576d46199532030fc748874c2607e59cf4586",
+          "siblings": [
+            "0xb52bb99204d5e55e0b16e76f89e55e5327af6f26ed7c15c8ca9dacad1fb790dc",
+            "0xa00ca6234b92fa5a932adc42a9c21b1bacfee9c5c3c32bbb9942c5931523eea0",
+            "0x737e1a95b193846d5361a731bfc59afd1f847f95bf1ad24937bc8653d9f52d67"
+          ]
+        },
+        "expectedValid": false
+      },
+      {
+        "name": "wrong_leaf_count",
+        "description": "Verification must fail when leafCount is altered, causing path parity mismatch",
+        "proof": {
+          "leafIndex": 6,
+          "leafCount": 8,
+          "leafHash": "0xcae0cb3a617700617763e82651796a0ba6aa10af9e83833dbb9a05659df12722",
+          "root": "0x971cd64cee4a664fbea3065cb18576d46199532030fc748874c2607e59cf4586",
+          "siblings": [
+            "0x2b3fffb39c319131ccfbd298e5b0599148caa99cd5256f372de8a8d50f69a3e4",
+            "0x11f3a2f6b4be493aff02739ee27bd2c39ca038fe667a47ec784187004f185973"
+          ]
+        },
+        "expectedValid": false
+      }
+    ]
+  }
+}
