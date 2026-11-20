@@ -1,5 +1,15 @@
 # TRUSTTRACE dashboard specification
 
+## Ablation Matrix checkpoint label
+
+Row D must read exactly:
+
+**Public Checkpoint (Quai Orchard Cyprus-1)**
+
+The public checkpoint target is chain ID `15000`. A transaction or API anchor
+reference is `ANCHORED_SERVER_REPORTED` only; `VERIFIED` requires an independent
+direct-RPC verifier result.
+
 ## Scope
 
 This document defines the Person 4 dashboard contract for the React, Vite, and Tailwind workstream. The dashboard is an operational view. It must present server-reported results as such and must not be treated as the authority for an integrity finding.

@@ -1,17 +1,21 @@
 import { useState } from 'react';
-import { mockDashboardAdapter } from './data/mockAdapter';
 import { Navigation } from './components/Navigation';
 import { StatusBadge } from './components/StatusBadge';
 import type { EvidenceEvent, ViewId } from './types';
+import { createDashboardDataSource } from './data/source';
 
-const adapter = mockDashboardAdapter;
+const dataSource = createDashboardDataSource();
+const adapter = dataSource.adapter;
+const isDemo = dataSource.mode === 'demo';
 
 function formatTime(value?: string) {
   return value ? new Date(value).toLocaleString('en-GB', { timeZone: 'UTC', hour12: false }) + ' UTC' : 'Not supplied';
 }
 
 function DemoTag() {
-  return <span className="demo-tag">DEMO DATA</span>;
+  return <span className={isDemo ? 'demo-tag' : 'mode-tag live-tag'}>
+    {isDemo ? 'DEMO DATA' : 'LIVE BACKEND'}
+  </span>;
 }
 
 function Metric({ label, value, note }: { label: string; value: string; note: string }) {
@@ -28,7 +32,7 @@ function EventTable({ events, onSelect }: { events: EvidenceEvent[]; onSelect?: 
 
 function Overview({ onNavigate }: { onNavigate: (view: ViewId) => void }) {
   const events = adapter.getEvents();
-  return <section className="page"><header className="page-heading"><div><p className="eyebrow">Operational picture <DemoTag /></p><h1>Security evidence at a glance</h1><p>Mock data only. Backend, WebSocket, and independent RPC verification are not connected.</p></div><StatusBadge state="disconnected" /></header>
+  return <section className="page"><header className="page-heading"><div><p className="eyebrow">Operational picture <DemoTag /></p><h1>Security evidence at a glance</h1><p>{isDemo ? 'Mock data only. Backend, WebSocket, and independent RPC verification are not connected.' : 'Live mode: approved backend configuration is missing or schemas remain unapproved.'}</p></div><StatusBadge state="disconnected" /></header>
     <div className="metric-grid"><Metric label="Vault observations" value="186" note="Demo sequence high-water mark" /><Metric label="Anchored batches" value="1" note="API-reported checkpoint" /><Metric label="Open integrity findings" value="1" note="Host comparison mismatch" /><Metric label="Collection gaps" value="1" note="Demo heartbeat scenario" /></div>
     <div className="two-col"><article className="panel"><div className="panel-heading"><div><p className="eyebrow">Latest evidence</p><h2>Vault-received observations</h2></div><button className="text-button" onClick={() => onNavigate('live-feed')}>View feed</button></div><EventTable events={events.slice(0, 2)} /></article>
     <article className="panel boundary"><p className="eyebrow">Evidence boundary</p><h2>What this view can say</h2><p>It presents demo observations. A checkpoint reference is not independent verification until a future auditor performs a direct RPC lookup.</p><button className="text-button" onClick={() => onNavigate('verification')}>Inspect witnesses</button></article></div>
@@ -36,7 +40,8 @@ function Overview({ onNavigate }: { onNavigate: (view: ViewId) => void }) {
 }
 
 function LiveFeed() {
-  return <section className="page"><header className="page-heading"><div><p className="eyebrow">Live transport <DemoTag /></p><h1>Live evidence feed</h1><p>Feed is disconnected because this standalone dashboard has no WebSocket integration.</p></div><StatusBadge state="disconnected" /></header><article className="panel"><div className="callout"><b>Stale-safe display</b><span>Rendered events are static mock records. Receipt and anchor claims require the future vault API contract.</span></div><EventTable events={adapter.getEvents()} /></article></section>;
+  const liveState = 'liveState' in adapter ? adapter.liveState() : undefined;
+  return <section className="page"><header className="page-heading"><div><p className="eyebrow">Live transport <DemoTag /></p><h1>Live evidence feed</h1><p>{isDemo ? 'Feed is disconnected because demo mode has no WebSocket integration.' : 'Backend transport is unavailable until approved live schemas are configured.'}</p></div><StatusBadge state={isDemo ? 'disconnected' : 'disconnected'} /></header><article className="panel"><div className="callout"><b>{isDemo ? 'Stale-safe display' : 'Live backend configuration'}</b><span>{isDemo ? 'Rendered events are static mock records. Receipt and anchor claims require the future vault API contract.' : liveState?.configError ?? liveState?.contractError}</span></div>{isDemo ? <EventTable events={adapter.getEvents()} /> : <div className="empty-state"><b>EMPTY</b><span>No live records are available because the approved read mapping is not configured.</span></div>}</article></section>;
 }
 
 function Verification() {
@@ -53,7 +58,7 @@ function Recovery() {
 }
 
 function Checkpoints() {
-  return <section className="page"><header className="page-heading"><div><p className="eyebrow">Blockchain commitments <DemoTag /></p><h1>Checkpoint status</h1><p>On-chain raw logs are never displayed because checkpoints carry commitment metadata only.</p></div><StatusBadge state="anchored-server-reported" /></header><article className="panel"><div className="callout"><b>Independent verification pending</b><span>Transaction and block fields are mock API-reported values. Direct RPC validation is intentionally unavailable.</span></div><div className="checkpoint-list">{adapter.getCheckpoints().map((checkpoint) => <article className="checkpoint" key={checkpoint.id}><div><p className="eyebrow">{checkpoint.id} <DemoTag /></p><h2>{checkpoint.sourceId} · {checkpoint.sequenceRange}</h2><p className="mono">Root {checkpoint.merkleRoot}</p></div><div><StatusBadge state={checkpoint.state} /><p className="mono">{checkpoint.transactionHash ?? 'No transaction hash supplied'}</p><small>{checkpoint.blockReference ?? 'Awaiting anchor'}</small></div></article>)}</div></article></section>;
+  return <section className="page"><header className="page-heading"><div><p className="eyebrow">Blockchain commitments <DemoTag /></p><h1>Checkpoint status</h1><p>On-chain raw logs are never displayed because checkpoints carry commitment metadata only.</p></div><StatusBadge state="anchored-server-reported" /></header><article className="panel"><div className="callout"><b>Independent verification pending</b><span>Quai Orchard Cyprus-1 · Chain ID 15000. Transaction and block fields are mock or API-reported values; direct RPC validation is required before VERIFIED.</span></div><div className="checkpoint-list">{adapter.getCheckpoints().map((checkpoint) => <article className="checkpoint" key={checkpoint.id}><div><p className="eyebrow">{checkpoint.id} <DemoTag /></p><h2>{checkpoint.sourceId} · {checkpoint.sequenceRange}</h2><p className="mono">Root {checkpoint.merkleRoot}</p></div><div><StatusBadge state={checkpoint.state} /><p className="mono">{checkpoint.transactionHash ?? 'No transaction hash supplied'}</p><small>{checkpoint.blockReference ?? 'Awaiting anchor · Quai Orchard Cyprus-1 (15000)'}</small></div></article>)}</div></article></section>;
 }
 
 function View({ activeView, onNavigate }: { activeView: ViewId; onNavigate: (view: ViewId) => void }) {
@@ -67,5 +72,5 @@ function View({ activeView, onNavigate }: { activeView: ViewId; onNavigate: (vie
 
 export default function App() {
   const [activeView, setActiveView] = useState<ViewId>('overview');
-  return <div className="app-shell"><aside className="sidebar"><div className="brand"><span>TT</span><div><b>TRUSTTRACE</b><small>evidence console</small></div></div><Navigation activeView={activeView} onNavigate={setActiveView} /><div className="sidebar-footer"><DemoTag /><p>Mock adapter active. No API, WebSocket, or RPC connection.</p></div></aside><main><header className="topbar"><button className="source-select" aria-label="Selected source">host-lab-01 <span>⌄</span></button><div className="topbar-status"><span className="pulse" aria-hidden="true" /> Demo mode · offline</div></header><View activeView={activeView} onNavigate={setActiveView} /></main></div>;
+  return <div className="app-shell"><aside className="sidebar"><div className="brand"><span>TT</span><div><b>TRUSTTRACE</b><small>evidence console</small></div></div><Navigation activeView={activeView} onNavigate={setActiveView} /><div className="sidebar-footer"><DemoTag /><p>{isDemo ? 'Mock adapter active. No API, WebSocket, or RPC connection.' : 'Live backend selected. Approved contracts are not mapped.'}</p></div></aside><main><header className="topbar"><button className="source-select" aria-label="Selected source">host-lab-01 <span>⌄</span></button><div className="topbar-status"><span className="pulse" aria-hidden="true" /> {isDemo ? 'Demo mode · offline' : 'Live mode · backend unavailable'}</div></header><View activeView={activeView} onNavigate={setActiveView} /></main></div>;
 }

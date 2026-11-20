@@ -9,7 +9,7 @@ const labels: Record<DashboardState, string> = {
   unanchored: 'Unanchored',
   pending: 'Pending',
   'anchored-server-reported': 'Anchored · API reported',
-  verified: 'Independently verified',
+  verified: 'Verified · direct RPC',
   tampered: 'Tamper detected'
 };
 

@@ -13,4 +13,9 @@ describe('StatusBadge', () => {
     render(<StatusBadge state="tampered" />);
     expect(screen.getByText('Tamper detected')).toBeInTheDocument();
   });
+
+  it('shows direct-RPC wording only for verified status', () => {
+    render(<StatusBadge state="verified" />);
+    expect(screen.getByText('Verified · direct RPC')).toBeInTheDocument();
+  });
 });

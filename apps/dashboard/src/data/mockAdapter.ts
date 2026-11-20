@@ -1,4 +1,4 @@
-import type { Checkpoint, EvidenceEvent, MockDashboardAdapter, VerificationWitness } from '../types';
+import type { Checkpoint, EvidenceEvent, DashboardAdapter, VerificationWitness } from '../types';
 
 const events: EvidenceEvent[] = [
   {
@@ -46,7 +46,7 @@ const checkpoints: Checkpoint[] = [
     sequenceRange: '181–185',
     merkleRoot: 'a28b…f991',
     transactionHash: '0x18a4…f2d9',
-    blockReference: 'local/31337 #82',
+    blockReference: 'Quai Orchard Cyprus-1 · Chain ID 15000',
     state: 'anchored-server-reported',
     createdAt: '2026-11-20T10:42:20Z'
   },
@@ -90,7 +90,7 @@ const verification: VerificationWitness[] = [
   }
 ];
 
-export const mockDashboardAdapter: MockDashboardAdapter = {
+export const mockDashboardAdapter: DashboardAdapter = {
   mode: 'demo',
   getEvents: () => events,
   getCheckpoints: () => checkpoints,

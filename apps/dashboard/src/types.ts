@@ -56,8 +56,8 @@ export interface VerificationWitness {
   details: Array<{ label: string; value?: string }>;
 }
 
-export interface MockDashboardAdapter {
-  readonly mode: 'demo';
+export interface DashboardAdapter {
+  readonly mode: 'demo' | 'live';
   getEvents(): EvidenceEvent[];
   getCheckpoints(): Checkpoint[];
   getVerification(): VerificationWitness[];
