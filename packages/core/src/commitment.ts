@@ -3,10 +3,41 @@ import { keccak256, keccak256Hex } from './keccak.ts';
 import { formatSourceId } from './canonical.ts';
 
 /**
- * EIP-712 Type Signatures
+ * Canonical EIP-712 Type Definitions
+ * 
+ * SPECIFICATION:
+ * Define the BatchCommitment EIP-712 type in core with field order and types written once.
  */
+export const BATCH_COMMITMENT_TYPE_NAME = 'BatchCommitment' as const;
+
+/**
+ * Single source of truth for BatchCommitment EIP-712 fields.
+ * Field order and types written once:
+ */
+export const BATCH_COMMITMENT_FIELDS = [
+  { name: 'sourceId', type: 'bytes32' },
+  { name: 'sequenceStart', type: 'uint64' },
+  { name: 'sequenceEnd', type: 'uint64' },
+  { name: 'leafCount', type: 'uint64' },
+  { name: 'merkleRoot', type: 'bytes32' },
+  { name: 'previousCheckpointHash', type: 'bytes32' }
+] as const;
+
+/**
+ * EIP-712 Types object for ethers.signTypedData(domain, BATCH_COMMITMENT_EIP712_TYPES, value):
+ */
+export const BATCH_COMMITMENT_EIP712_TYPES = {
+  [BATCH_COMMITMENT_TYPE_NAME]: [...BATCH_COMMITMENT_FIELDS]
+} as const;
+
+/**
+ * Canonical EIP-712 type string derived from the single source of truth:
+ */
+export const BATCH_COMMITMENT_TYPE = `${BATCH_COMMITMENT_TYPE_NAME}(${BATCH_COMMITMENT_FIELDS.map(
+  (f) => `${f.type} ${f.name}`
+).join(',')})`;
+
 export const EIP712_DOMAIN_TYPE = 'EIP712Domain(string name,string version,uint256 chainId,address verifyingContract)';
-export const BATCH_COMMITMENT_TYPE = 'BatchCommitment(bytes32 sourceId,uint64 sequenceStart,uint64 sequenceEnd,uint64 leafCount,bytes32 merkleRoot,bytes32 previousCheckpointHash)';
 
 /**
  * Precomputed Type Hashes

@@ -1,7 +1,5 @@
-import { HardhatUserConfig } from 'hardhat/config';
-import '@nomicfoundation/hardhat-toolbox';
+require("@nomicfoundation/hardhat-toolbox");
 
-// Load environment variables if available
 const LOCAL_RPC_URL = process.env.LOCAL_RPC_URL || 'http://127.0.0.1:8545';
 const AMOY_RPC_URL = process.env.AMOY_RPC_URL || 'https://rpc-amoy.polygon.technology';
 const RELAYER_PRIVATE_KEY = process.env.RELAYER_PRIVATE_KEY;
@@ -17,7 +15,7 @@ const HARDHAT_DEFAULT_KEYS = [
  * Safety validator for public network accounts.
  * RULE: Never use Hardhat default keys on a public network!
  */
-function getPublicNetworkAccounts(key?: string): string[] {
+function getPublicNetworkAccounts(key) {
   if (!key) {
     return [];
   }
@@ -32,7 +30,8 @@ function getPublicNetworkAccounts(key?: string): string[] {
   return [key.startsWith('0x') ? key : `0x${key}`];
 }
 
-const config: HardhatUserConfig = {
+/** @type import('hardhat/config').HardhatUserConfig */
+module.exports = {
   solidity: {
     version: '0.8.24',
     settings: {
@@ -65,5 +64,3 @@ const config: HardhatUserConfig = {
     artifacts: './artifacts'
   }
 };
-
-export default config;
