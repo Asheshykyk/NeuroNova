@@ -14,6 +14,7 @@
     "./commitment": "./src/commitment.ts",
     "./signer": "./src/signer.ts",
     "./agent": "./src/agent.ts",
+    "./checkpoint": "./src/checkpoint.ts",
     "./test-vectors": "./src/test-vectors.ts",
     "./abi": "./src/abi/index.ts"
   },

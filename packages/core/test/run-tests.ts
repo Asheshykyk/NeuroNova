@@ -7,6 +7,7 @@ import { runCanonicalTests } from './canonical.test.ts';
 import { runMerkleTests } from './merkle.test.ts';
 import { runCommitmentTests } from './commitment.test.ts';
 import { runAgentChunkTests } from './agent.test.ts';
+import { runCheckpointTests } from './checkpoint.test.ts';
 
 console.log('============================================================');
 console.log('TRUSTTRACE @trusttrace/core Test Suite');
@@ -21,8 +22,10 @@ try {
   runCommitmentTests();
   console.log('');
   runAgentChunkTests();
+  console.log('');
+  runCheckpointTests();
   console.log('\n============================================================');
-  console.log('ALL CORE CRYPTO TESTS PASSED SUCCESSFULLY! (49/49 checks)');
+  console.log('ALL CORE CRYPTO TESTS PASSED SUCCESSFULLY! (61/61 checks)');
   console.log('============================================================');
 } catch (err) {
   console.error('\n❌ Test Failure:');

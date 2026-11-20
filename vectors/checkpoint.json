@@ -1,0 +1,75 @@
+{
+  "description": "TRUSTTRACE Cross-Chain Public Checkpoint Test Vectors (Tier 1 Local -> Tier 2 Quai Checkpoint)",
+  "domainTag": "0xCC",
+  "preimageLength": 165,
+  "genesisCheckpoint": {
+    "input": {
+      "previousCheckpointDigest": "0x0000000000000000000000000000000000000000000000000000000000000000",
+      "localChainId": 31337,
+      "localBlockNumber": 10,
+      "localBlockHash": "0x1111111111111111111111111111111111111111111111111111111111111111",
+      "latestBatchRoot": "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "latestSequence": 50,
+      "contractAddress": "0x5FbDB2315678afecb367f032d93F642f64180aa3"
+    },
+    "preimageHex": "0xcc00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000007a69000000000000000a1111111111111111111111111111111111111111111111111111111111111111aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa00000000000000325fbdb2315678afecb367f032d93f642f64180aa3",
+    "digestHex": "0xddc2b3c34ea499ff2d59ac8423e75814f04685a6465998b3ac32d41d1b2aa591"
+  },
+  "chainedCheckpoint": {
+    "input": {
+      "previousCheckpointDigest": "0xddc2b3c34ea499ff2d59ac8423e75814f04685a6465998b3ac32d41d1b2aa591",
+      "localChainId": 31337,
+      "localBlockNumber": 25,
+      "localBlockHash": "0x2222222222222222222222222222222222222222222222222222222222222222",
+      "latestBatchRoot": "0xbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+      "latestSequence": 120,
+      "contractAddress": "0x5FbDB2315678afecb367f032d93F642f64180aa3"
+    },
+    "preimageHex": "0xccddc2b3c34ea499ff2d59ac8423e75814f04685a6465998b3ac32d41d1b2aa5910000000000000000000000000000000000000000000000000000000000007a6900000000000000192222222222222222222222222222222222222222222222222222222222222222bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb00000000000000785fbdb2315678afecb367f032d93f642f64180aa3",
+    "digestHex": "0x007d4b3c9353ed696fc72d9fb23b36921ba59a4398e05c155b251de9679d4ba6"
+  },
+  "negativeCases": [
+    {
+      "name": "altered_batch_root",
+      "description": "Tampering with latestBatchRoot changes digest",
+      "input": {
+        "previousCheckpointDigest": "0xddc2b3c34ea499ff2d59ac8423e75814f04685a6465998b3ac32d41d1b2aa591",
+        "localChainId": 31337,
+        "localBlockNumber": 25,
+        "localBlockHash": "0x2222222222222222222222222222222222222222222222222222222222222222",
+        "latestBatchRoot": "0xcccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+        "latestSequence": 120,
+        "contractAddress": "0x5FbDB2315678afecb367f032d93F642f64180aa3"
+      },
+      "expectedMatch": false
+    },
+    {
+      "name": "altered_local_block_hash",
+      "description": "Local chain reorg / block hash mismatch changes digest",
+      "input": {
+        "previousCheckpointDigest": "0xddc2b3c34ea499ff2d59ac8423e75814f04685a6465998b3ac32d41d1b2aa591",
+        "localChainId": 31337,
+        "localBlockNumber": 25,
+        "localBlockHash": "0x9999999999999999999999999999999999999999999999999999999999999999",
+        "latestBatchRoot": "0xbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+        "latestSequence": 120,
+        "contractAddress": "0x5FbDB2315678afecb367f032d93F642f64180aa3"
+      },
+      "expectedMatch": false
+    },
+    {
+      "name": "broken_continuity",
+      "description": "Checkpoint with wrong previousCheckpointDigest",
+      "input": {
+        "previousCheckpointDigest": "0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+        "localChainId": 31337,
+        "localBlockNumber": 25,
+        "localBlockHash": "0x2222222222222222222222222222222222222222222222222222222222222222",
+        "latestBatchRoot": "0xbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+        "latestSequence": 120,
+        "contractAddress": "0x5FbDB2315678afecb367f032d93F642f64180aa3"
+      },
+      "expectedContinuity": false
+    }
+  ]
+}
