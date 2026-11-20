@@ -41,6 +41,15 @@ export class SqliteEvidenceIndex {
       CREATE UNIQUE INDEX IF NOT EXISTS evidence_records_delivery_id
         ON evidence_records(delivery_id)
         WHERE delivery_id IS NOT NULL;
+
+      CREATE TABLE IF NOT EXISTS agent_heartbeats (
+        source_id TEXT PRIMARY KEY,
+        heartbeat_sequence TEXT NOT NULL,
+        observed_at TEXT NOT NULL,
+        last_byte_offset TEXT NOT NULL,
+        status TEXT NOT NULL,
+        vault_received_at TEXT NOT NULL
+      );
     `);
 
     const columns = this.db.prepare('PRAGMA table_info(evidence_records)').all() as Array<{ name: string }>;
@@ -154,6 +163,82 @@ export class SqliteEvidenceIndex {
       record.byteOffset ?? null,
       record.observedAt ?? null
     );
+  }
+
+  acceptHeartbeat(
+    sourceId: string,
+    heartbeatSequence: bigint,
+    observedAt: bigint,
+    lastByteOffset: bigint,
+    status: string,
+    vaultReceivedAt: string
+  ): void {
+    const row = this.db.prepare(`
+      SELECT heartbeat_sequence AS heartbeatSequence
+      FROM agent_heartbeats
+      WHERE source_id = ?
+    `).get(sourceId) as { heartbeatSequence: string } | undefined;
+
+    const latest = row ? BigInt(row.heartbeatSequence) : 0n;
+    if (heartbeatSequence <= latest) {
+      throw new Error(`Heartbeat replay: sequence ${heartbeatSequence} is not greater than latest ${latest}`);
+    }
+    if (heartbeatSequence !== latest + 1n) {
+      throw new Error(`Heartbeat out-of-order sequence: expected ${latest + 1n}, got ${heartbeatSequence}`);
+    }
+
+    this.db.prepare(`
+      INSERT INTO agent_heartbeats (
+        source_id, heartbeat_sequence, observed_at, last_byte_offset, status, vault_received_at
+      ) VALUES (?, ?, ?, ?, ?, ?)
+      ON CONFLICT(source_id) DO UPDATE SET
+        heartbeat_sequence = excluded.heartbeat_sequence,
+        observed_at = excluded.observed_at,
+        last_byte_offset = excluded.last_byte_offset,
+        status = excluded.status,
+        vault_received_at = excluded.vault_received_at
+    `).run(
+      sourceId,
+      heartbeatSequence.toString(),
+      observedAt.toString(),
+      lastByteOffset.toString(),
+      status,
+      vaultReceivedAt
+    );
+  }
+
+  getHeartbeat(sourceId: string): {
+    sourceId: string;
+    heartbeatSequence: bigint;
+    observedAt: bigint;
+    lastByteOffset: bigint;
+    status: string;
+    vaultReceivedAt: string;
+  } | null {
+    const row = this.db.prepare(`
+      SELECT source_id AS sourceId, heartbeat_sequence AS heartbeatSequence,
+             observed_at AS observedAt, last_byte_offset AS lastByteOffset,
+             status, vault_received_at AS vaultReceivedAt
+      FROM agent_heartbeats
+      WHERE source_id = ?
+    `).get(sourceId) as {
+      sourceId: string;
+      heartbeatSequence: string;
+      observedAt: string;
+      lastByteOffset: string;
+      status: string;
+      vaultReceivedAt: string;
+    } | undefined;
+
+    if (!row) return null;
+    return {
+      sourceId: row.sourceId,
+      heartbeatSequence: BigInt(row.heartbeatSequence),
+      observedAt: BigInt(row.observedAt),
+      lastByteOffset: BigInt(row.lastByteOffset),
+      status: row.status,
+      vaultReceivedAt: row.vaultReceivedAt
+    };
   }
 
   close(): void {

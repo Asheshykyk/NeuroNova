@@ -24,6 +24,25 @@ export interface EvidenceReceipt {
   observedAt?: bigint;
 }
 
+export interface HeartbeatReceipt {
+  sourceId: string;
+  heartbeatSequence: bigint;
+  observedAt: bigint;
+  lastByteOffset: bigint;
+  status: string;
+  vaultReceivedAt: string;
+  availability: 'available' | 'unavailable';
+}
+
+export interface PersistedHeartbeat {
+  sourceId: string;
+  heartbeatSequence: bigint;
+  observedAt: bigint;
+  lastByteOffset: bigint;
+  status: string;
+  vaultReceivedAt: string;
+}
+
 export interface EvidenceIndexStatus {
   state: 'healthy' | 'degraded';
   lastHealthyAt: string | null;

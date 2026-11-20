@@ -1,6 +1,7 @@
 import express, { type Express, type ErrorRequestHandler } from 'express';
 import type { EvidenceStore } from '../storage/evidenceStore.ts';
 import { createIngestHandler, type TrustedAgentPublicKeyProvider } from './ingest.ts';
+import { createHeartbeatHandler } from './heartbeat.ts';
 
 export interface CreateAppOptions {
   store?: EvidenceStore;
@@ -18,6 +19,10 @@ export function createApp(options: CreateAppOptions = {}): Express {
   if (options.store) {
     const keyProvider = options.trustedAgentPublicKeyProvider ?? (() => undefined);
     app.post('/api/v1/logs/ingest', createIngestHandler({
+      store: options.store,
+      trustedAgentPublicKeyProvider: keyProvider
+    }));
+    app.post('/api/v1/agents/heartbeat', createHeartbeatHandler({
       store: options.store,
       trustedAgentPublicKeyProvider: keyProvider
     }));

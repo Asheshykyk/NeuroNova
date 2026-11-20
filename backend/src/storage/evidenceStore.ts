@@ -10,6 +10,8 @@ import type {
   EvidenceJsonlRecord,
   EvidenceReceipt,
   EvidenceIndexStatus,
+  HeartbeatReceipt,
+  PersistedHeartbeat,
   SourceIdInput
 } from './types.ts';
 
@@ -299,6 +301,79 @@ export class EvidenceStore {
       }
 
       return receipt;
+  }
+
+  async acceptHeartbeat(
+    sourceId: string,
+    heartbeatSequence: bigint,
+    observedAt: bigint,
+    lastByteOffset: bigint,
+    status: string
+  ): Promise<HeartbeatReceipt> {
+    const release = await lockfile.lock(this.directory, {
+      retries: { retries: 20, minTimeout: 50, maxTimeout: 500 },
+      stale: LOCK_STALE_MS,
+      update: LOCK_UPDATE_MS,
+      realpath: false
+    });
+
+    let receipt: HeartbeatReceipt;
+    try {
+      if (!this.index) {
+        throw Object.assign(new Error('Heartbeat persistence index is unavailable'), { statusCode: 503 });
+      }
+
+      const normalizedSourceId = formatSourceIdHex(sourceId);
+      const vaultReceivedAt = this.now().toISOString();
+      this.index.acceptHeartbeat(
+        normalizedSourceId,
+        heartbeatSequence,
+        observedAt,
+        lastByteOffset,
+        status,
+        vaultReceivedAt
+      );
+
+      const accepted = this.getHeartbeatReceipt(normalizedSourceId);
+      if (!accepted) {
+        throw new Error('Heartbeat persistence returned no receipt');
+      }
+      receipt = accepted;
+    } catch (operationError) {
+      try {
+        await release();
+      } catch (releaseError) {
+        throw combineLockReleaseError(operationError, releaseError);
+      }
+      throw operationError;
+    }
+
+    try {
+      await release();
+    } catch (releaseError) {
+      throw releaseError;
+    }
+    return receipt;
+  }
+
+  getHeartbeat(sourceId: string): PersistedHeartbeat | null {
+    if (!this.index) return null;
+    return this.index.getHeartbeat(formatSourceIdHex(sourceId));
+  }
+
+  getHeartbeatReceipt(sourceId: string): HeartbeatReceipt | null {
+    const heartbeat = this.getHeartbeat(sourceId);
+    if (!heartbeat) return null;
+
+    const receiptTime = Date.parse(heartbeat.vaultReceivedAt);
+    const available = Number.isFinite(receiptTime)
+      && this.now().getTime() - receiptTime <= 15_000
+      && this.now().getTime() >= receiptTime;
+
+    return {
+      ...heartbeat,
+      availability: available ? 'available' : 'unavailable'
+    };
   }
 
   close(): void {
