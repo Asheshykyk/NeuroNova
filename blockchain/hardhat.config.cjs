@@ -15,7 +15,9 @@ subtask(TASK_TEST_GET_TEST_FILES).setAction(async ({ testFiles }, { config }) =>
 
 const LOCAL_RPC_URL = process.env.LOCAL_RPC_URL || 'http://127.0.0.1:8545';
 const AMOY_RPC_URL = process.env.AMOY_RPC_URL || 'https://rpc-amoy.polygon.technology';
+const QUAI_ORCHARD_RPC_URL = process.env.QUAI_RPC_URL || 'https://orchard.rpc.quai.network/cyprus1';
 const RELAYER_PRIVATE_KEY = process.env.RELAYER_PRIVATE_KEY;
+const QUAI_DEPLOYER_PRIVATE_KEY = process.env.QUAI_DEPLOYER_PRIVATE_KEY || process.env.QUAI_PRIVATE_KEY;
 
 // Known Hardhat default test keys
 const HARDHAT_DEFAULT_KEYS = [
@@ -46,14 +48,18 @@ function getPublicNetworkAccounts(key) {
 /** @type import('hardhat/config').HardhatUserConfig */
 module.exports = {
   solidity: {
-    version: '0.8.24',
-    settings: {
-      optimizer: {
-        enabled: true,
-        runs: 200
-      },
-      evmVersion: 'cancun'
-    },
+    compilers: [
+      {
+        version: '0.8.24',
+        settings: {
+          optimizer: {
+            enabled: true,
+            runs: 200
+          },
+          evmVersion: 'cancun'
+        }
+      }
+    ],
     overrides: {
       'contracts/EvidenceAnchor.sol': {
         version: '0.8.24',
@@ -80,6 +86,12 @@ module.exports = {
       chainId: 80002,
       // RULE: Never use Hardhat default keys on a public network!
       accounts: getPublicNetworkAccounts(RELAYER_PRIVATE_KEY)
+    },
+    quai_orchard: {
+      url: QUAI_ORCHARD_RPC_URL,
+      chainId: 15000,
+      // RULE: Never use Hardhat default keys on a public network!
+      accounts: getPublicNetworkAccounts(QUAI_DEPLOYER_PRIVATE_KEY)
     }
   },
   paths: {
