@@ -104,13 +104,24 @@ describe('EvidenceAnchor Smart Contract (Problem B3)', function () {
       const signature = await vaultSigner.signTypedData(domain, types, commitment);
 
       // Relayer submits transaction (msg.sender != vaultSigner)
-      const tx = await contract.connect(relayer).anchorBatch(commitment, signature);
-      const receipt = await tx.wait();
-
       const expectedStructHash = computeCommitmentStructHashHex(commitment);
+
+      await expect(contract.connect(relayer).anchorBatch(commitment, signature))
+        .to.emit(contract, 'BatchAnchored');
+
       expect(await contract.isBatchAnchored(expectedStructHash)).to.be.true;
 
-      const latest = await contract.getLatestBatch(sourceId);
+      // Verify stored data matches via getBatch view
+      const stored = await contract.getBatch(expectedStructHash);
+      expect(stored.sourceId).to.equal(commitment.sourceId);
+      expect(stored.sequenceStart).to.equal(commitment.sequenceStart);
+      expect(stored.sequenceEnd).to.equal(commitment.sequenceEnd);
+      expect(stored.leafCount).to.equal(commitment.leafCount);
+      expect(stored.merkleRoot).to.equal(commitment.merkleRoot);
+      expect(stored.previousCheckpointHash).to.equal(commitment.previousCheckpointHash);
+
+      // Verify stored data matches via getLatest view
+      const latest = await contract.getLatest(sourceId);
       expect(latest.commitmentHash).to.equal(expectedStructHash);
       expect(latest.commitment.sequenceStart).to.equal(1n);
       expect(latest.commitment.sequenceEnd).to.equal(3n);

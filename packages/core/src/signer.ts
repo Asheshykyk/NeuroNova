@@ -274,6 +274,9 @@ export function signBatchCommitment(
   };
 }
 
+/** Prompt 1 Canonical API Alias */
+export const signCommitment = signBatchCommitment;
+
 /**
  * Verifies a signed batch commitment against an expected signer address.
  */

@@ -6,6 +6,7 @@ import {
   computeEIP712DigestHex,
   EIP712_DOMAIN_TYPEHASH,
   GENESIS_CHECKPOINT_HASH,
+  hashCommitment,
   validateSequenceContinuity
 } from '../src/commitment.ts';
 import {
@@ -13,6 +14,7 @@ import {
   recoverCommitmentSigner,
   recoverSignerAddress,
   signBatchCommitment,
+  signCommitment,
   verifyCommitmentSignature
 } from '../src/signer.ts';
 import {
@@ -153,5 +155,21 @@ export function runCommitmentTests() {
     'Amoy checkpoint struct hash must match expected (A4)'
   );
 
-  console.log('✓ Commitment, EIP-712 & Vault Signer tests passed (16/16)');
+  // Test 17: Prompt 1 API - hashCommitment matches computeCommitmentStructHash
+  const hashComResult = hashCommitment(TEST_BATCH_1);
+  assert.strictEqual(
+    '0x' + hashComResult.toString('hex'),
+    TEST_BATCH_1_STRUCT_HASH,
+    'hashCommitment must produce expected struct hash'
+  );
+
+  // Test 18: Prompt 1 API - signCommitment produces valid signature
+  const signedCom = signCommitment(TEST_VAULT_SIGNER_KEY, TEST_EIP712_DOMAIN, TEST_BATCH_1);
+  assert.strictEqual(
+    signedCom.signature,
+    TEST_SIGNED_BATCH_1.signature,
+    'signCommitment must produce valid signature'
+  );
+
+  console.log('✓ Commitment, EIP-712 & Vault Signer tests passed (18/18)');
 }

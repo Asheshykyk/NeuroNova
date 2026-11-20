@@ -199,16 +199,31 @@ export const generateMerkleProof = getProof;
  */
 export function verifyProof(
   leafHashOrProof: Uint8Array | Buffer | string | MerkleProof | { leafIndex: number; leafCount: number; leafHash: string; siblings: string[]; root?: string },
-  proofOrExpectedRoot?: MerkleProofStep[] | string[] | Uint8Array | Buffer | string,
-  expectedRootParam?: Uint8Array | Buffer | string,
-  leafIndexParam?: number,
-  leafCountParam?: number
+  proofOrExpectedRootOrIndex?: MerkleProofStep[] | string[] | Uint8Array | Buffer | string | number,
+  expectedRootOrCountParam?: Uint8Array | Buffer | string | number,
+  leafIndexOrProofParam?: number | string[] | Buffer[],
+  leafCountOrRootParam?: number | string | Buffer | Uint8Array
 ): boolean {
   try {
+    // Mode C: Prompt 1 exact positional signature: verifyProof(leaf, index, leafCount, proof, root)
+    if (
+      typeof proofOrExpectedRootOrIndex === 'number' &&
+      typeof expectedRootOrCountParam === 'number' &&
+      Array.isArray(leafIndexOrProofParam) &&
+      leafCountOrRootParam !== undefined
+    ) {
+      const leaf = leafHashOrProof as Uint8Array | Buffer | string;
+      const index = proofOrExpectedRootOrIndex;
+      const count = expectedRootOrCountParam;
+      const proof = leafIndexOrProofParam as string[];
+      const root = leafCountOrRootParam as Uint8Array | Buffer | string;
+      return verifyProofWithIndices(leaf, proof, root, index, count);
+    }
+
     // Mode A: Called with MerkleProof object as first argument
     if (typeof leafHashOrProof === 'object' && leafHashOrProof !== null && 'leafIndex' in leafHashOrProof && 'leafCount' in leafHashOrProof) {
       const p = leafHashOrProof as { leafIndex: number; leafCount: number; leafHash: string; siblings?: string[]; steps?: MerkleProofStep[]; root?: string };
-      const expectedRoot = expectedRootParam || (typeof proofOrExpectedRoot === 'string' || Buffer.isBuffer(proofOrExpectedRoot) ? proofOrExpectedRoot : p.root);
+      const expectedRoot = (expectedRootOrCountParam as Uint8Array | Buffer | string) || (typeof proofOrExpectedRootOrIndex === 'string' || Buffer.isBuffer(proofOrExpectedRootOrIndex) ? proofOrExpectedRootOrIndex : p.root);
       if (!expectedRoot) return false;
 
       // Verify using (leafIndex, leafCount, siblings)
@@ -224,22 +239,22 @@ export function verifyProof(
 
     // Mode B: Called with explicit (leafHash, proof, expectedRoot, leafIndex, leafCount)
     const leafHash = leafHashOrProof as Uint8Array | Buffer | string;
-    const expectedRoot = expectedRootParam;
+    const expectedRoot = expectedRootOrCountParam as Uint8Array | Buffer | string;
     if (!expectedRoot) return false;
 
-    // If proofOrExpectedRoot is array of MerkleProofStep objects
-    if (Array.isArray(proofOrExpectedRoot) && proofOrExpectedRoot.length > 0 && typeof proofOrExpectedRoot[0] === 'object' && 'position' in proofOrExpectedRoot[0]) {
-      return verifyProofWithSteps(leafHash, proofOrExpectedRoot as MerkleProofStep[], expectedRoot);
+    // If proofOrExpectedRootOrIndex is array of MerkleProofStep objects
+    if (Array.isArray(proofOrExpectedRootOrIndex) && proofOrExpectedRootOrIndex.length > 0 && typeof proofOrExpectedRootOrIndex[0] === 'object' && 'position' in proofOrExpectedRootOrIndex[0]) {
+      return verifyProofWithSteps(leafHash, proofOrExpectedRootOrIndex as MerkleProofStep[], expectedRoot);
     }
 
-    // If proofOrExpectedRoot is an array of sibling hex strings with leafIndex & leafCount provided
-    if (Array.isArray(proofOrExpectedRoot) && leafIndexParam !== undefined && leafCountParam !== undefined) {
-      return verifyProofWithIndices(leafHash, proofOrExpectedRoot as string[], expectedRoot, leafIndexParam, leafCountParam);
+    // If proofOrExpectedRootOrIndex is an array of sibling hex strings with leafIndex & leafCount provided
+    if (Array.isArray(proofOrExpectedRootOrIndex) && typeof leafIndexOrProofParam === 'number' && typeof leafCountOrRootParam === 'number') {
+      return verifyProofWithIndices(leafHash, proofOrExpectedRootOrIndex as string[], expectedRoot, leafIndexOrProofParam, leafCountOrRootParam);
     }
 
-    // If proofOrExpectedRoot is a MerkleProof object
-    if (typeof proofOrExpectedRoot === 'object' && proofOrExpectedRoot !== null && 'siblings' in proofOrExpectedRoot) {
-      const p = proofOrExpectedRoot as MerkleProof;
+    // If proofOrExpectedRootOrIndex is a MerkleProof object
+    if (typeof proofOrExpectedRootOrIndex === 'object' && proofOrExpectedRootOrIndex !== null && 'siblings' in proofOrExpectedRootOrIndex) {
+      const p = proofOrExpectedRootOrIndex as MerkleProof;
       return verifyProofWithIndices(leafHash, p.siblings, expectedRoot, p.leafIndex, p.leafCount);
     }
 

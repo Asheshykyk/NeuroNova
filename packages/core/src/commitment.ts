@@ -173,6 +173,12 @@ export function computeCommitmentStructHashHex(commitment: BatchCommitment): str
 }
 
 /**
+ * Prompt 1 Canonical API Aliases
+ */
+export const hashCommitment = computeCommitmentStructHash;
+export const hashCommitmentHex = computeCommitmentStructHashHex;
+
+/**
  * Computes the complete EIP-712 digest to be signed by the Vault Signer:
  * 
  * digest = keccak256("\x19\x01" || domainSeparator || structHash)
