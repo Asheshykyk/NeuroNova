@@ -9,16 +9,43 @@ import type { SourceIdInput } from './types.ts';
  */
 export const AGENT_CHUNK_DOMAIN_TAG = 0xAA;
 
+/**
+ * Domain separation byte for Host Agent periodic heartbeat signing.
+ * Distinguishes heartbeats from event chunks (0xAA) and Merkle nodes (0x01).
+ */
+export const AGENT_HEARTBEAT_DOMAIN_TAG = 0xAB;
+
 const SPKI_ED25519_PREFIX = Buffer.from('302a300506032b6570032100', 'hex');
 const PKCS8_ED25519_PREFIX = Buffer.from('302e020100300506032b657004220420', 'hex');
 
 export interface AgentChunk {
   /** 32-byte host / source identifier (formatSourceId compatible) */
   sourceId: SourceIdInput;
-  /** Unique delivery identifier for chunk deduplication & idempotency */
+  /** Unique delivery identifier (UUID string or idempotent sequence) */
   deliveryId: string;
-  /** Raw log line(s) or payload bytes */
+  /** Raw log line(s) or payload bytes (unmodified, pure log bytes) */
   payload: Uint8Array | Buffer | string;
+  /** Logical log stream identifier, e.g. "auth.log" (default: "") */
+  streamId?: string;
+  /** File identity (e.g. "inode:142857" or "/var/log/auth.log") (default: "") */
+  fileIdentity?: string;
+  /** Monotonic byte offset within the monitored log file (default: 0n) */
+  byteOffset?: bigint | number;
+  /** Nanoseconds or milliseconds epoch timestamp observed by host agent (default: 0n) */
+  observedAt?: bigint | number;
+}
+
+export interface AgentHeartbeat {
+  /** 32-byte host / source identifier */
+  sourceId: SourceIdInput;
+  /** Strictly monotonic heartbeat sequence (1, 2, 3...) */
+  heartbeatSequence: bigint | number;
+  /** Host agent observation timestamp (nanoseconds or milliseconds epoch) */
+  observedAt: bigint | number;
+  /** Current tail byte offset in the monitored log file */
+  lastByteOffset: bigint | number;
+  /** Agent operational status (e.g. "OK", "DEGRADED", "TAMPER_DETECTED") */
+  status: string;
 }
 
 export interface AgentKeyPair {
@@ -138,7 +165,14 @@ export function generateAgentKeyPair(seed?: Buffer | Uint8Array): AgentKeyPair {
 /**
  * Encodes the canonical Host Agent chunk preimage:
  *
- * preimage = 0xAA || sourceId (32B) || deliveryIdLen (2B BE) || deliveryId (MB) || payloadLen (4B BE) || payload (NB)
+ * preimage = 0xAA
+ *   || sourceId (32B)
+ *   || deliveryIdLen (2B BE) || deliveryId (MB)
+ *   || streamIdLen (2B BE) || streamId (KB)
+ *   || fileIdentityLen (2B BE) || fileIdentity (LB)
+ *   || byteOffset (8B BE uint64)
+ *   || observedAt (8B BE uint64)
+ *   || payloadLen (4B BE uint32) || payload (NB)
  */
 export function encodeAgentChunkPreimage(chunk: AgentChunk): Buffer {
   const tagBuf = Buffer.from([AGENT_CHUNK_DOMAIN_TAG]);
@@ -151,6 +185,26 @@ export function encodeAgentChunkPreimage(chunk: AgentChunk): Buffer {
   const deliveryIdLenBuf = Buffer.alloc(2);
   deliveryIdLenBuf.writeUInt16BE(deliveryIdBuf.length, 0);
 
+  const streamIdBuf = Buffer.from(chunk.streamId ?? '', 'utf-8');
+  if (streamIdBuf.length > 65535) {
+    throw new RangeError(`streamId exceeds maximum length of 65535 bytes: got ${streamIdBuf.length}`);
+  }
+  const streamIdLenBuf = Buffer.alloc(2);
+  streamIdLenBuf.writeUInt16BE(streamIdBuf.length, 0);
+
+  const fileIdentityBuf = Buffer.from(chunk.fileIdentity ?? '', 'utf-8');
+  if (fileIdentityBuf.length > 65535) {
+    throw new RangeError(`fileIdentity exceeds maximum length of 65535 bytes: got ${fileIdentityBuf.length}`);
+  }
+  const fileIdentityLenBuf = Buffer.alloc(2);
+  fileIdentityLenBuf.writeUInt16BE(fileIdentityBuf.length, 0);
+
+  const byteOffsetBuf = Buffer.alloc(8);
+  byteOffsetBuf.writeBigUInt64BE(BigInt(chunk.byteOffset ?? 0n), 0);
+
+  const observedAtBuf = Buffer.alloc(8);
+  observedAtBuf.writeBigUInt64BE(BigInt(chunk.observedAt ?? 0n), 0);
+
   const payloadBuf = formatRawEventBytes(chunk.payload);
   const payloadLenBuf = Buffer.alloc(4);
   payloadLenBuf.writeUInt32BE(payloadBuf.length, 0);
@@ -160,6 +214,12 @@ export function encodeAgentChunkPreimage(chunk: AgentChunk): Buffer {
     sourceIdBuf,
     deliveryIdLenBuf,
     deliveryIdBuf,
+    streamIdLenBuf,
+    streamIdBuf,
+    fileIdentityLenBuf,
+    fileIdentityBuf,
+    byteOffsetBuf,
+    observedAtBuf,
     payloadLenBuf,
     payloadBuf
   ]);
@@ -199,6 +259,92 @@ export function verifyAgentChunk(
   try {
     const pubKeyObject = parseAgentPublicKey(publicKey);
     const preimage = encodeAgentChunkPreimage(chunk);
+    const sigBuf = typeof signature === 'string'
+      ? Buffer.from(signature.startsWith('0x') ? signature.slice(2) : signature, 'hex')
+      : (Buffer.isBuffer(signature) ? signature : Buffer.from(signature));
+
+    if (sigBuf.length !== 64) return false;
+    return crypto.verify(null, preimage, pubKeyObject, sigBuf);
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Encodes the canonical Host Agent heartbeat preimage:
+ *
+ * preimage = 0xAB
+ *   || sourceId (32B)
+ *   || heartbeatSequence (8B BE uint64)
+ *   || observedAt (8B BE uint64)
+ *   || lastByteOffset (8B BE uint64)
+ *   || statusLen (2B BE uint16) || status (SB)
+ */
+export function encodeAgentHeartbeatPreimage(heartbeat: AgentHeartbeat): Buffer {
+  const tagBuf = Buffer.from([AGENT_HEARTBEAT_DOMAIN_TAG]);
+  const sourceIdBuf = formatSourceId(heartbeat.sourceId);
+
+  const seqBuf = Buffer.alloc(8);
+  seqBuf.writeBigUInt64BE(BigInt(heartbeat.heartbeatSequence), 0);
+
+  const obsBuf = Buffer.alloc(8);
+  obsBuf.writeBigUInt64BE(BigInt(heartbeat.observedAt), 0);
+
+  const offsetBuf = Buffer.alloc(8);
+  offsetBuf.writeBigUInt64BE(BigInt(heartbeat.lastByteOffset), 0);
+
+  const statusBuf = Buffer.from(heartbeat.status, 'utf-8');
+  if (statusBuf.length > 65535) {
+    throw new RangeError(`status exceeds maximum length of 65535 bytes: got ${statusBuf.length}`);
+  }
+  const statusLenBuf = Buffer.alloc(2);
+  statusLenBuf.writeUInt16BE(statusBuf.length, 0);
+
+  return Buffer.concat([
+    tagBuf,
+    sourceIdBuf,
+    seqBuf,
+    obsBuf,
+    offsetBuf,
+    statusLenBuf,
+    statusBuf
+  ]);
+}
+
+/**
+ * Signs a Host Agent heartbeat using Ed25519.
+ * Returns the raw 64-byte signature Buffer.
+ */
+export function signAgentHeartbeat(
+  heartbeat: AgentHeartbeat,
+  privateKey: crypto.KeyObject | string | Buffer | Uint8Array
+): Buffer {
+  const privKeyObject = parseAgentPrivateKey(privateKey);
+  const preimage = encodeAgentHeartbeatPreimage(heartbeat);
+  return crypto.sign(null, preimage, privKeyObject);
+}
+
+/**
+ * Signs a Host Agent heartbeat using Ed25519 and returns a 0x-prefixed hex string.
+ */
+export function signAgentHeartbeatHex(
+  heartbeat: AgentHeartbeat,
+  privateKey: crypto.KeyObject | string | Buffer | Uint8Array
+): string {
+  return '0x' + signAgentHeartbeat(heartbeat, privateKey).toString('hex');
+}
+
+/**
+ * Verifies a Host Agent heartbeat Ed25519 signature.
+ */
+export function verifyAgentHeartbeat(
+  heartbeat: AgentHeartbeat,
+  signature: Buffer | Uint8Array | string,
+  publicKey: crypto.KeyObject | string | Buffer | Uint8Array
+): boolean {
+  try {
+    const pubKeyObject = parseAgentPublicKey(publicKey);
+    const preimage = encodeAgentHeartbeatPreimage(heartbeat);
     const sigBuf = typeof signature === 'string'
       ? Buffer.from(signature.startsWith('0x') ? signature.slice(2) : signature, 'hex')
       : (Buffer.isBuffer(signature) ? signature : Buffer.from(signature));

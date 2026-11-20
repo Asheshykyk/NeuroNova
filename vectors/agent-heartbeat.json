@@ -1,0 +1,20 @@
+{
+  "description": "Host Agent Ed25519 heartbeat signing test vector for TRUSTTRACE",
+  "domainTag": "0xAB",
+  "seed": "0x0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+  "keyPair": {
+    "publicKeyRaw": "0x207a067892821e25d770f1fba0c47c11ff4b813e54162ece9eb839e076231ab6",
+    "privateKeyRaw": "0x0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
+  },
+  "heartbeat": {
+    "sourceId": "host-agent-cyprus-01",
+    "heartbeatSequence": "1",
+    "observedAt": "1732145400000000000",
+    "lastByteOffset": "1048576",
+    "status": "OK"
+  },
+  "preimageHex": "0xab686f73742d6167656e742d6379707275732d303100000000000000000000000000000000000000011809d1106253b000000000000010000000024f4b",
+  "preimageLength": 61,
+  "signatureHex": "0x3d0a8568410de33e259cbf33982ee6eb9ed534703d4e57d3abb6aa0054d395373285dd07de386b07a2ac9c8e7b53c01972c13bc82167c89948523f110533c009",
+  "verified": true
+}
