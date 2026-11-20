@@ -1,5 +1,5 @@
 {
-  "name": "core",
+  "name": "@trusttrace/core",
   "version": "1.0.0",
   "description": "TRUSTTRACE Shared Cryptographic Core & EIP-712 / Contract ABI",
   "main": "./src/index.ts",

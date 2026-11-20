@@ -147,5 +147,14 @@ export function runMerkleTests() {
   }
   console.log('✓ Validated all vectors in vectors/merkle.json (1, 2, 3, 4, 5, 7 leaves + negative cases)');
 
-  console.log('✓ Merkle Tree & Inclusion Proof tests passed (12/12)');
+  // Test 13: Prompt 1 API - verifyProof(leaf, index, leafCount, proof, root) positional arguments
+  const p1Leaf = TEST_LEAF_HASHES[2];
+  const p1Proof = PROOF_LEAF_2_TREE_3.siblings;
+  const p1Valid = verifyProof(p1Leaf, 2, 3, p1Proof, MERKLE_ROOT_3);
+  assert.strictEqual(p1Valid, true, 'verifyProof with Prompt 1 positional arguments must succeed');
+
+  const p1Invalid = verifyProof(p1Leaf, 2, 999, p1Proof, MERKLE_ROOT_3);
+  assert.strictEqual(p1Invalid, false, 'verifyProof with wrong leafCount must fail');
+
+  console.log('✓ Merkle Tree & Inclusion Proof tests passed (13/13)');
 }

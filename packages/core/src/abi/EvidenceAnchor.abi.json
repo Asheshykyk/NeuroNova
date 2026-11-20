@@ -1,292 +1,889 @@
 [
   {
-    "type": "constructor",
     "inputs": [],
-    "stateMutability": "nonpayable"
+    "stateMutability": "nonpayable",
+    "type": "constructor"
   },
   {
-    "type": "function",
-    "name": "anchorBatch",
+    "anonymous": false,
     "inputs": [
       {
-        "name": "commitment",
-        "type": "tuple",
-        "internalType": "struct EvidenceAnchor.BatchCommitment",
-        "components": [
-          { "name": "sourceId", "type": "bytes32", "internalType": "bytes32" },
-          { "name": "sequenceStart", "type": "uint64", "internalType": "uint64" },
-          { "name": "sequenceEnd", "type": "uint64", "internalType": "uint64" },
-          { "name": "leafCount", "type": "uint64", "internalType": "uint64" },
-          { "name": "merkleRoot", "type": "bytes32", "internalType": "bytes32" },
-          { "name": "previousCheckpointHash", "type": "bytes32", "internalType": "bytes32" }
-        ]
+        "indexed": true,
+        "internalType": "bytes32",
+        "name": "sourceId",
+        "type": "bytes32"
       },
       {
-        "name": "signature",
-        "type": "bytes",
-        "internalType": "bytes"
-      }
-    ],
-    "outputs": [
+        "indexed": false,
+        "internalType": "uint64",
+        "name": "sequenceStart",
+        "type": "uint64"
+      },
       {
+        "indexed": false,
+        "internalType": "uint64",
+        "name": "sequenceEnd",
+        "type": "uint64"
+      },
+      {
+        "indexed": false,
+        "internalType": "uint64",
+        "name": "leafCount",
+        "type": "uint64"
+      },
+      {
+        "indexed": false,
+        "internalType": "bytes32",
+        "name": "merkleRoot",
+        "type": "bytes32"
+      },
+      {
+        "indexed": false,
+        "internalType": "bytes32",
+        "name": "previousCheckpointHash",
+        "type": "bytes32"
+      },
+      {
+        "indexed": true,
+        "internalType": "bytes32",
         "name": "commitmentHash",
-        "type": "bytes32",
-        "internalType": "bytes32"
-      }
-    ],
-    "stateMutability": "nonpayable"
-  },
-  {
-    "type": "function",
-    "name": "anchorBatchWithVRS",
-    "inputs": [
-      {
-        "name": "commitment",
-        "type": "tuple",
-        "internalType": "struct EvidenceAnchor.BatchCommitment",
-        "components": [
-          { "name": "sourceId", "type": "bytes32", "internalType": "bytes32" },
-          { "name": "sequenceStart", "type": "uint64", "internalType": "uint64" },
-          { "name": "sequenceEnd", "type": "uint64", "internalType": "uint64" },
-          { "name": "leafCount", "type": "uint64", "internalType": "uint64" },
-          { "name": "merkleRoot", "type": "bytes32", "internalType": "bytes32" },
-          { "name": "previousCheckpointHash", "type": "bytes32", "internalType": "bytes32" }
-        ]
+        "type": "bytes32"
       },
-      { "name": "v", "type": "uint8", "internalType": "uint8" },
-      { "name": "r", "type": "bytes32", "internalType": "bytes32" },
-      { "name": "s", "type": "bytes32", "internalType": "bytes32" }
-    ],
-    "outputs": [
       {
-        "name": "commitmentHash",
-        "type": "bytes32",
-        "internalType": "bytes32"
-      }
-    ],
-    "stateMutability": "nonpayable"
-  },
-  {
-    "type": "function",
-    "name": "registerSource",
-    "inputs": [
-      { "name": "sourceId", "type": "bytes32", "internalType": "bytes32" },
-      { "name": "signer", "type": "address", "internalType": "address" }
-    ],
-    "outputs": [],
-    "stateMutability": "nonpayable"
-  },
-  {
-    "type": "function",
-    "name": "revokeSource",
-    "inputs": [
-      { "name": "sourceId", "type": "bytes32", "internalType": "bytes32" }
-    ],
-    "outputs": [],
-    "stateMutability": "nonpayable"
-  },
-  {
-    "type": "function",
-    "name": "getLatestBatch",
-    "inputs": [
-      { "name": "sourceId", "type": "bytes32", "internalType": "bytes32" }
-    ],
-    "outputs": [
-      {
-        "name": "commitment",
-        "type": "tuple",
-        "internalType": "struct EvidenceAnchor.BatchCommitment",
-        "components": [
-          { "name": "sourceId", "type": "bytes32", "internalType": "bytes32" },
-          { "name": "sequenceStart", "type": "uint64", "internalType": "uint64" },
-          { "name": "sequenceEnd", "type": "uint64", "internalType": "uint64" },
-          { "name": "leafCount", "type": "uint64", "internalType": "uint64" },
-          { "name": "merkleRoot", "type": "bytes32", "internalType": "bytes32" },
-          { "name": "previousCheckpointHash", "type": "bytes32", "internalType": "bytes32" }
-        ]
+        "indexed": false,
+        "internalType": "address",
+        "name": "signer",
+        "type": "address"
       },
-      { "name": "commitmentHash", "type": "bytes32", "internalType": "bytes32" }
-    ],
-    "stateMutability": "view"
-  },
-  {
-    "type": "function",
-    "name": "getSource",
-    "inputs": [
-      { "name": "sourceId", "type": "bytes32", "internalType": "bytes32" }
-    ],
-    "outputs": [
-      { "name": "signer", "type": "address", "internalType": "address" },
-      { "name": "registered", "type": "bool", "internalType": "bool" },
-      { "name": "revoked", "type": "bool", "internalType": "bool" },
-      { "name": "lastSequenceEnd", "type": "uint64", "internalType": "uint64" },
-      { "name": "lastCheckpointHash", "type": "bytes32", "internalType": "bytes32" },
-      { "name": "batchCount", "type": "uint256", "internalType": "uint256" }
-    ],
-    "stateMutability": "view"
-  },
-  {
-    "type": "function",
-    "name": "getBatchByHash",
-    "inputs": [
-      { "name": "commitmentHash", "type": "bytes32", "internalType": "bytes32" }
-    ],
-    "outputs": [
       {
-        "name": "",
-        "type": "tuple",
-        "internalType": "struct EvidenceAnchor.BatchCommitment",
-        "components": [
-          { "name": "sourceId", "type": "bytes32", "internalType": "bytes32" },
-          { "name": "sequenceStart", "type": "uint64", "internalType": "uint64" },
-          { "name": "sequenceEnd", "type": "uint64", "internalType": "uint64" },
-          { "name": "leafCount", "type": "uint64", "internalType": "uint64" },
-          { "name": "merkleRoot", "type": "bytes32", "internalType": "bytes32" },
-          { "name": "previousCheckpointHash", "type": "bytes32", "internalType": "bytes32" }
-        ]
+        "indexed": false,
+        "internalType": "address",
+        "name": "relayer",
+        "type": "address"
+      },
+      {
+        "indexed": false,
+        "internalType": "uint256",
+        "name": "timestamp",
+        "type": "uint256"
       }
     ],
-    "stateMutability": "view"
-  },
-  {
-    "type": "function",
-    "name": "isBatchAnchored",
-    "inputs": [
-      { "name": "commitmentHash", "type": "bytes32", "internalType": "bytes32" }
-    ],
-    "outputs": [
-      { "name": "", "type": "bool", "internalType": "bool" }
-    ],
-    "stateMutability": "view"
-  },
-  {
-    "type": "function",
-    "name": "hashCommitment",
-    "inputs": [
-      {
-        "name": "commitment",
-        "type": "tuple",
-        "internalType": "struct EvidenceAnchor.BatchCommitment",
-        "components": [
-          { "name": "sourceId", "type": "bytes32", "internalType": "bytes32" },
-          { "name": "sequenceStart", "type": "uint64", "internalType": "uint64" },
-          { "name": "sequenceEnd", "type": "uint64", "internalType": "uint64" },
-          { "name": "leafCount", "type": "uint64", "internalType": "uint64" },
-          { "name": "merkleRoot", "type": "bytes32", "internalType": "bytes32" },
-          { "name": "previousCheckpointHash", "type": "bytes32", "internalType": "bytes32" }
-        ]
-      }
-    ],
-    "outputs": [
-      { "name": "", "type": "bytes32", "internalType": "bytes32" }
-    ],
-    "stateMutability": "pure"
-  },
-  {
-    "type": "function",
-    "name": "getDigest",
-    "inputs": [
-      {
-        "name": "commitment",
-        "type": "tuple",
-        "internalType": "struct EvidenceAnchor.BatchCommitment",
-        "components": [
-          { "name": "sourceId", "type": "bytes32", "internalType": "bytes32" },
-          { "name": "sequenceStart", "type": "uint64", "internalType": "uint64" },
-          { "name": "sequenceEnd", "type": "uint64", "internalType": "uint64" },
-          { "name": "leafCount", "type": "uint64", "internalType": "uint64" },
-          { "name": "merkleRoot", "type": "bytes32", "internalType": "bytes32" },
-          { "name": "previousCheckpointHash", "type": "bytes32", "internalType": "bytes32" }
-        ]
-      }
-    ],
-    "outputs": [
-      { "name": "", "type": "bytes32", "internalType": "bytes32" }
-    ],
-    "stateMutability": "view"
-  },
-  {
-    "type": "function",
-    "name": "domainSeparator",
-    "inputs": [],
-    "outputs": [
-      { "name": "", "type": "bytes32", "internalType": "bytes32" }
-    ],
-    "stateMutability": "view"
-  },
-  {
-    "type": "function",
-    "name": "verifyInclusionProof",
-    "inputs": [
-      { "name": "leafHash", "type": "bytes32", "internalType": "bytes32" },
-      { "name": "proof", "type": "bytes32[]", "internalType": "bytes32[]" },
-      { "name": "index", "type": "uint256", "internalType": "uint256" },
-      { "name": "expectedRoot", "type": "bytes32", "internalType": "bytes32" }
-    ],
-    "outputs": [
-      { "name": "", "type": "bool", "internalType": "bool" }
-    ],
-    "stateMutability": "pure"
-  },
-  {
-    "type": "function",
-    "name": "owner",
-    "inputs": [],
-    "outputs": [
-      { "name": "", "type": "address", "internalType": "address" }
-    ],
-    "stateMutability": "view"
-  },
-  {
-    "type": "function",
-    "name": "transferOwnership",
-    "inputs": [
-      { "name": "newOwner", "type": "address", "internalType": "address" }
-    ],
-    "outputs": [],
-    "stateMutability": "nonpayable"
-  },
-  {
-    "type": "event",
     "name": "BatchAnchored",
-    "inputs": [
-      { "name": "sourceId", "type": "bytes32", "indexed": true, "internalType": "bytes32" },
-      { "name": "sequenceStart", "type": "uint64", "indexed": false, "internalType": "uint64" },
-      { "name": "sequenceEnd", "type": "uint64", "indexed": false, "internalType": "uint64" },
-      { "name": "leafCount", "type": "uint64", "indexed": false, "internalType": "uint64" },
-      { "name": "merkleRoot", "type": "bytes32", "indexed": false, "internalType": "bytes32" },
-      { "name": "previousCheckpointHash", "type": "bytes32", "indexed": false, "internalType": "bytes32" },
-      { "name": "commitmentHash", "type": "bytes32", "indexed": true, "internalType": "bytes32" },
-      { "name": "signer", "type": "address", "indexed": false, "internalType": "address" },
-      { "name": "relayer", "type": "address", "indexed": false, "internalType": "address" },
-      { "name": "timestamp", "type": "uint256", "indexed": false, "internalType": "uint256" }
-    ],
-    "anonymous": false
+    "type": "event"
   },
   {
-    "type": "event",
-    "name": "SourceRegistered",
+    "anonymous": false,
     "inputs": [
-      { "name": "sourceId", "type": "bytes32", "indexed": true, "internalType": "bytes32" },
-      { "name": "signer", "type": "address", "indexed": true, "internalType": "address" }
+      {
+        "indexed": true,
+        "internalType": "address",
+        "name": "previousOwner",
+        "type": "address"
+      },
+      {
+        "indexed": true,
+        "internalType": "address",
+        "name": "newOwner",
+        "type": "address"
+      }
     ],
-    "anonymous": false
-  },
-  {
-    "type": "event",
-    "name": "SourceRevoked",
-    "inputs": [
-      { "name": "sourceId", "type": "bytes32", "indexed": true, "internalType": "bytes32" }
-    ],
-    "anonymous": false
-  },
-  {
-    "type": "event",
     "name": "OwnershipTransferred",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
     "inputs": [
-      { "name": "previousOwner", "type": "address", "indexed": true, "internalType": "address" },
-      { "name": "newOwner", "type": "address", "indexed": true, "internalType": "address" }
+      {
+        "indexed": true,
+        "internalType": "bytes32",
+        "name": "sourceId",
+        "type": "bytes32"
+      },
+      {
+        "indexed": true,
+        "internalType": "address",
+        "name": "signer",
+        "type": "address"
+      }
     ],
-    "anonymous": false
+    "name": "SourceRegistered",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": true,
+        "internalType": "bytes32",
+        "name": "sourceId",
+        "type": "bytes32"
+      }
+    ],
+    "name": "SourceRevoked",
+    "type": "event"
+  },
+  {
+    "inputs": [],
+    "name": "BATCH_COMMITMENT_TYPEHASH",
+    "outputs": [
+      {
+        "internalType": "bytes32",
+        "name": "",
+        "type": "bytes32"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "DOMAIN_NAME_HASH",
+    "outputs": [
+      {
+        "internalType": "bytes32",
+        "name": "",
+        "type": "bytes32"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "DOMAIN_VERSION_HASH",
+    "outputs": [
+      {
+        "internalType": "bytes32",
+        "name": "",
+        "type": "bytes32"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "EIP712_DOMAIN_TYPEHASH",
+    "outputs": [
+      {
+        "internalType": "bytes32",
+        "name": "",
+        "type": "bytes32"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "components": [
+          {
+            "internalType": "bytes32",
+            "name": "sourceId",
+            "type": "bytes32"
+          },
+          {
+            "internalType": "uint64",
+            "name": "sequenceStart",
+            "type": "uint64"
+          },
+          {
+            "internalType": "uint64",
+            "name": "sequenceEnd",
+            "type": "uint64"
+          },
+          {
+            "internalType": "uint64",
+            "name": "leafCount",
+            "type": "uint64"
+          },
+          {
+            "internalType": "bytes32",
+            "name": "merkleRoot",
+            "type": "bytes32"
+          },
+          {
+            "internalType": "bytes32",
+            "name": "previousCheckpointHash",
+            "type": "bytes32"
+          }
+        ],
+        "internalType": "struct EvidenceAnchor.BatchCommitment",
+        "name": "commitment",
+        "type": "tuple"
+      },
+      {
+        "internalType": "bytes",
+        "name": "signature",
+        "type": "bytes"
+      }
+    ],
+    "name": "anchorBatch",
+    "outputs": [
+      {
+        "internalType": "bytes32",
+        "name": "commitmentHash",
+        "type": "bytes32"
+      }
+    ],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "components": [
+          {
+            "internalType": "bytes32",
+            "name": "sourceId",
+            "type": "bytes32"
+          },
+          {
+            "internalType": "uint64",
+            "name": "sequenceStart",
+            "type": "uint64"
+          },
+          {
+            "internalType": "uint64",
+            "name": "sequenceEnd",
+            "type": "uint64"
+          },
+          {
+            "internalType": "uint64",
+            "name": "leafCount",
+            "type": "uint64"
+          },
+          {
+            "internalType": "bytes32",
+            "name": "merkleRoot",
+            "type": "bytes32"
+          },
+          {
+            "internalType": "bytes32",
+            "name": "previousCheckpointHash",
+            "type": "bytes32"
+          }
+        ],
+        "internalType": "struct EvidenceAnchor.BatchCommitment",
+        "name": "commitment",
+        "type": "tuple"
+      },
+      {
+        "internalType": "uint8",
+        "name": "v",
+        "type": "uint8"
+      },
+      {
+        "internalType": "bytes32",
+        "name": "r",
+        "type": "bytes32"
+      },
+      {
+        "internalType": "bytes32",
+        "name": "s",
+        "type": "bytes32"
+      }
+    ],
+    "name": "anchorBatchWithVRS",
+    "outputs": [
+      {
+        "internalType": "bytes32",
+        "name": "commitmentHash",
+        "type": "bytes32"
+      }
+    ],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "bytes32",
+        "name": "",
+        "type": "bytes32"
+      }
+    ],
+    "name": "anchoredBatches",
+    "outputs": [
+      {
+        "internalType": "bool",
+        "name": "",
+        "type": "bool"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "bytes32",
+        "name": "",
+        "type": "bytes32"
+      }
+    ],
+    "name": "batches",
+    "outputs": [
+      {
+        "internalType": "bytes32",
+        "name": "sourceId",
+        "type": "bytes32"
+      },
+      {
+        "internalType": "uint64",
+        "name": "sequenceStart",
+        "type": "uint64"
+      },
+      {
+        "internalType": "uint64",
+        "name": "sequenceEnd",
+        "type": "uint64"
+      },
+      {
+        "internalType": "uint64",
+        "name": "leafCount",
+        "type": "uint64"
+      },
+      {
+        "internalType": "bytes32",
+        "name": "merkleRoot",
+        "type": "bytes32"
+      },
+      {
+        "internalType": "bytes32",
+        "name": "previousCheckpointHash",
+        "type": "bytes32"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "domainSeparator",
+    "outputs": [
+      {
+        "internalType": "bytes32",
+        "name": "",
+        "type": "bytes32"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "bytes32",
+        "name": "commitmentHash",
+        "type": "bytes32"
+      }
+    ],
+    "name": "getBatch",
+    "outputs": [
+      {
+        "components": [
+          {
+            "internalType": "bytes32",
+            "name": "sourceId",
+            "type": "bytes32"
+          },
+          {
+            "internalType": "uint64",
+            "name": "sequenceStart",
+            "type": "uint64"
+          },
+          {
+            "internalType": "uint64",
+            "name": "sequenceEnd",
+            "type": "uint64"
+          },
+          {
+            "internalType": "uint64",
+            "name": "leafCount",
+            "type": "uint64"
+          },
+          {
+            "internalType": "bytes32",
+            "name": "merkleRoot",
+            "type": "bytes32"
+          },
+          {
+            "internalType": "bytes32",
+            "name": "previousCheckpointHash",
+            "type": "bytes32"
+          }
+        ],
+        "internalType": "struct EvidenceAnchor.BatchCommitment",
+        "name": "",
+        "type": "tuple"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "bytes32",
+        "name": "commitmentHash",
+        "type": "bytes32"
+      }
+    ],
+    "name": "getBatchByHash",
+    "outputs": [
+      {
+        "components": [
+          {
+            "internalType": "bytes32",
+            "name": "sourceId",
+            "type": "bytes32"
+          },
+          {
+            "internalType": "uint64",
+            "name": "sequenceStart",
+            "type": "uint64"
+          },
+          {
+            "internalType": "uint64",
+            "name": "sequenceEnd",
+            "type": "uint64"
+          },
+          {
+            "internalType": "uint64",
+            "name": "leafCount",
+            "type": "uint64"
+          },
+          {
+            "internalType": "bytes32",
+            "name": "merkleRoot",
+            "type": "bytes32"
+          },
+          {
+            "internalType": "bytes32",
+            "name": "previousCheckpointHash",
+            "type": "bytes32"
+          }
+        ],
+        "internalType": "struct EvidenceAnchor.BatchCommitment",
+        "name": "",
+        "type": "tuple"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "components": [
+          {
+            "internalType": "bytes32",
+            "name": "sourceId",
+            "type": "bytes32"
+          },
+          {
+            "internalType": "uint64",
+            "name": "sequenceStart",
+            "type": "uint64"
+          },
+          {
+            "internalType": "uint64",
+            "name": "sequenceEnd",
+            "type": "uint64"
+          },
+          {
+            "internalType": "uint64",
+            "name": "leafCount",
+            "type": "uint64"
+          },
+          {
+            "internalType": "bytes32",
+            "name": "merkleRoot",
+            "type": "bytes32"
+          },
+          {
+            "internalType": "bytes32",
+            "name": "previousCheckpointHash",
+            "type": "bytes32"
+          }
+        ],
+        "internalType": "struct EvidenceAnchor.BatchCommitment",
+        "name": "commitment",
+        "type": "tuple"
+      }
+    ],
+    "name": "getDigest",
+    "outputs": [
+      {
+        "internalType": "bytes32",
+        "name": "",
+        "type": "bytes32"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "bytes32",
+        "name": "sourceId",
+        "type": "bytes32"
+      }
+    ],
+    "name": "getLatest",
+    "outputs": [
+      {
+        "components": [
+          {
+            "internalType": "bytes32",
+            "name": "sourceId",
+            "type": "bytes32"
+          },
+          {
+            "internalType": "uint64",
+            "name": "sequenceStart",
+            "type": "uint64"
+          },
+          {
+            "internalType": "uint64",
+            "name": "sequenceEnd",
+            "type": "uint64"
+          },
+          {
+            "internalType": "uint64",
+            "name": "leafCount",
+            "type": "uint64"
+          },
+          {
+            "internalType": "bytes32",
+            "name": "merkleRoot",
+            "type": "bytes32"
+          },
+          {
+            "internalType": "bytes32",
+            "name": "previousCheckpointHash",
+            "type": "bytes32"
+          }
+        ],
+        "internalType": "struct EvidenceAnchor.BatchCommitment",
+        "name": "commitment",
+        "type": "tuple"
+      },
+      {
+        "internalType": "bytes32",
+        "name": "commitmentHash",
+        "type": "bytes32"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "bytes32",
+        "name": "sourceId",
+        "type": "bytes32"
+      }
+    ],
+    "name": "getLatestBatch",
+    "outputs": [
+      {
+        "components": [
+          {
+            "internalType": "bytes32",
+            "name": "sourceId",
+            "type": "bytes32"
+          },
+          {
+            "internalType": "uint64",
+            "name": "sequenceStart",
+            "type": "uint64"
+          },
+          {
+            "internalType": "uint64",
+            "name": "sequenceEnd",
+            "type": "uint64"
+          },
+          {
+            "internalType": "uint64",
+            "name": "leafCount",
+            "type": "uint64"
+          },
+          {
+            "internalType": "bytes32",
+            "name": "merkleRoot",
+            "type": "bytes32"
+          },
+          {
+            "internalType": "bytes32",
+            "name": "previousCheckpointHash",
+            "type": "bytes32"
+          }
+        ],
+        "internalType": "struct EvidenceAnchor.BatchCommitment",
+        "name": "commitment",
+        "type": "tuple"
+      },
+      {
+        "internalType": "bytes32",
+        "name": "commitmentHash",
+        "type": "bytes32"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "bytes32",
+        "name": "sourceId",
+        "type": "bytes32"
+      }
+    ],
+    "name": "getSource",
+    "outputs": [
+      {
+        "internalType": "address",
+        "name": "signer",
+        "type": "address"
+      },
+      {
+        "internalType": "bool",
+        "name": "registered",
+        "type": "bool"
+      },
+      {
+        "internalType": "bool",
+        "name": "revoked",
+        "type": "bool"
+      },
+      {
+        "internalType": "uint64",
+        "name": "lastSequenceEnd",
+        "type": "uint64"
+      },
+      {
+        "internalType": "bytes32",
+        "name": "lastCheckpointHash",
+        "type": "bytes32"
+      },
+      {
+        "internalType": "uint256",
+        "name": "batchCount",
+        "type": "uint256"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "components": [
+          {
+            "internalType": "bytes32",
+            "name": "sourceId",
+            "type": "bytes32"
+          },
+          {
+            "internalType": "uint64",
+            "name": "sequenceStart",
+            "type": "uint64"
+          },
+          {
+            "internalType": "uint64",
+            "name": "sequenceEnd",
+            "type": "uint64"
+          },
+          {
+            "internalType": "uint64",
+            "name": "leafCount",
+            "type": "uint64"
+          },
+          {
+            "internalType": "bytes32",
+            "name": "merkleRoot",
+            "type": "bytes32"
+          },
+          {
+            "internalType": "bytes32",
+            "name": "previousCheckpointHash",
+            "type": "bytes32"
+          }
+        ],
+        "internalType": "struct EvidenceAnchor.BatchCommitment",
+        "name": "commitment",
+        "type": "tuple"
+      }
+    ],
+    "name": "hashCommitment",
+    "outputs": [
+      {
+        "internalType": "bytes32",
+        "name": "",
+        "type": "bytes32"
+      }
+    ],
+    "stateMutability": "pure",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "bytes32",
+        "name": "commitmentHash",
+        "type": "bytes32"
+      }
+    ],
+    "name": "isBatchAnchored",
+    "outputs": [
+      {
+        "internalType": "bool",
+        "name": "",
+        "type": "bool"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "owner",
+    "outputs": [
+      {
+        "internalType": "address",
+        "name": "",
+        "type": "address"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "bytes32",
+        "name": "sourceId",
+        "type": "bytes32"
+      },
+      {
+        "internalType": "address",
+        "name": "signer",
+        "type": "address"
+      }
+    ],
+    "name": "registerSource",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "bytes32",
+        "name": "sourceId",
+        "type": "bytes32"
+      }
+    ],
+    "name": "revokeSource",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "bytes32",
+        "name": "",
+        "type": "bytes32"
+      }
+    ],
+    "name": "sources",
+    "outputs": [
+      {
+        "internalType": "address",
+        "name": "signer",
+        "type": "address"
+      },
+      {
+        "internalType": "bool",
+        "name": "registered",
+        "type": "bool"
+      },
+      {
+        "internalType": "bool",
+        "name": "revoked",
+        "type": "bool"
+      },
+      {
+        "internalType": "uint64",
+        "name": "lastSequenceEnd",
+        "type": "uint64"
+      },
+      {
+        "internalType": "bytes32",
+        "name": "lastCheckpointHash",
+        "type": "bytes32"
+      },
+      {
+        "internalType": "uint256",
+        "name": "batchCount",
+        "type": "uint256"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "address",
+        "name": "newOwner",
+        "type": "address"
+      }
+    ],
+    "name": "transferOwnership",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "bytes32",
+        "name": "leafHash",
+        "type": "bytes32"
+      },
+      {
+        "internalType": "bytes32[]",
+        "name": "proof",
+        "type": "bytes32[]"
+      },
+      {
+        "internalType": "uint256",
+        "name": "index",
+        "type": "uint256"
+      },
+      {
+        "internalType": "bytes32",
+        "name": "expectedRoot",
+        "type": "bytes32"
+      }
+    ],
+    "name": "verifyInclusionProof",
+    "outputs": [
+      {
+        "internalType": "bool",
+        "name": "",
+        "type": "bool"
+      }
+    ],
+    "stateMutability": "pure",
+    "type": "function"
   }
 ]

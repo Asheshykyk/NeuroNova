@@ -347,8 +347,8 @@ contract EvidenceAnchor {
     /**
      * @notice Returns latest batch commitment and hash for a source.
      */
-    function getLatestBatch(bytes32 sourceId)
-        external
+    function getLatest(bytes32 sourceId)
+        public
         view
         returns (BatchCommitment memory commitment, bytes32 commitmentHash)
     {
@@ -358,6 +358,17 @@ contract EvidenceAnchor {
 
         commitmentHash = source.lastCheckpointHash;
         commitment = batches[commitmentHash];
+    }
+
+    /**
+     * @notice Backward-compatible alias for getLatest.
+     */
+    function getLatestBatch(bytes32 sourceId)
+        external
+        view
+        returns (BatchCommitment memory commitment, bytes32 commitmentHash)
+    {
+        return getLatest(sourceId);
     }
 
     /**
@@ -389,9 +400,16 @@ contract EvidenceAnchor {
     /**
      * @notice Returns a stored commitment by its struct hash.
      */
-    function getBatchByHash(bytes32 commitmentHash) external view returns (BatchCommitment memory) {
+    function getBatch(bytes32 commitmentHash) public view returns (BatchCommitment memory) {
         require(anchoredBatches[commitmentHash], "Batch commitment not found");
         return batches[commitmentHash];
+    }
+
+    /**
+     * @notice Backward-compatible alias for getBatch.
+     */
+    function getBatchByHash(bytes32 commitmentHash) external view returns (BatchCommitment memory) {
+        return getBatch(commitmentHash);
     }
 
     /**

@@ -9,6 +9,7 @@
  */
 
 import crypto from 'node:crypto';
+import fs from 'node:fs';
 import type { BatchCommitment, EIP712Domain, SignedBatchCommitment } from './types.ts';
 import { computeCommitmentStructHashHex, computeEIP712Digest } from './commitment.ts';
 import { keccak256 } from './keccak.ts';
@@ -123,6 +124,26 @@ function normalizePrivateKey(privKey: Uint8Array | Buffer | string): Buffer {
     return Buffer.from(clean, 'hex');
   }
   throw new TypeError('Invalid private key type');
+}
+
+/**
+ * Loads a secp256k1 private key from a hex string or mounted secret file.
+ * Automatically trims trailing whitespace, newlines, or quotes common in Docker secrets.
+ *
+ * @param filePathOrSecret Path to a file (e.g. /run/secrets/vault-signer-key) or raw 64-char hex string
+ * @returns 64-character hex private key string prefixed with '0x'
+ */
+export function loadPrivateKey(filePathOrSecret: string): string {
+  let content = filePathOrSecret.trim();
+  if (fs.existsSync(content)) {
+    content = fs.readFileSync(content, 'utf-8').trim();
+  }
+  content = content.replace(/^["']|["']$/g, '').trim();
+  const clean = content.startsWith('0x') ? content.slice(2) : content;
+  if (clean.length !== 64 || !/^[0-9a-fA-F]{64}$/.test(clean)) {
+    throw new Error(`Invalid private key format: expected 64 hex characters (32 bytes), got length ${clean.length}`);
+  }
+  return '0x' + clean.toLowerCase();
 }
 
 /**
@@ -273,6 +294,9 @@ export function signBatchCommitment(
     digest: '0x' + digest.toString('hex')
   };
 }
+
+/** Prompt 1 Canonical API Alias */
+export const signCommitment = signBatchCommitment;
 
 /**
  * Verifies a signed batch commitment against an expected signer address.
