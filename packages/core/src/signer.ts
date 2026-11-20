@@ -167,12 +167,14 @@ export function signDigest(
  * Recovers the public key point [X, Y] from a 32-byte digest and { r, s, v }.
  */
 export function recoverPublicKeyPoint(
-  digest: Uint8Array | Buffer,
+  digest: Uint8Array | Buffer | string,
   r: bigint,
   s: bigint,
   v: number
 ): [bigint, bigint] {
-  const digestBuf = Buffer.from(digest);
+  const digestBuf = typeof digest === 'string'
+    ? Buffer.from(digest.startsWith('0x') ? digest.slice(2) : digest, 'hex')
+    : Buffer.from(digest);
   if (digestBuf.length !== 32) throw new Error(`Digest must be 32 bytes, got ${digestBuf.length}`);
   if (v !== 27 && v !== 28) throw new RangeError(`Invalid recovery id v: ${v}, expected 27 or 28`);
   if (r <= 0n || r >= N) throw new RangeError('r value out of valid range');
@@ -216,7 +218,7 @@ export function recoverPublicKeyPoint(
  * Recovers Ethereum address from a 32-byte digest and 65-byte signature hex.
  */
 export function recoverSignerAddress(
-  digest: Uint8Array | Buffer,
+  digest: Uint8Array | Buffer | string,
   signatureHex: string
 ): string {
   const clean = signatureHex.startsWith('0x') ? signatureHex.slice(2) : signatureHex;

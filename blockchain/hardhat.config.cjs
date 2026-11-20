@@ -1,4 +1,17 @@
+require('ts-node/register');
 require("@nomicfoundation/hardhat-toolbox");
+const { subtask } = require("hardhat/config");
+const { TASK_TEST_GET_TEST_FILES } = require("hardhat/builtin-tasks/task-names");
+const path = require("path");
+const { globSync } = require("glob");
+
+subtask(TASK_TEST_GET_TEST_FILES).setAction(async ({ testFiles }, { config }) => {
+  if (testFiles && testFiles.length > 0) {
+    return testFiles.map((f) => path.resolve(process.cwd(), f));
+  }
+  const testsDir = path.resolve(config.paths.tests);
+  return globSync(path.join(testsDir, "**/*.test.{ts,js,cjs}").replace(/\\/g, '/'));
+});
 
 const LOCAL_RPC_URL = process.env.LOCAL_RPC_URL || 'http://127.0.0.1:8545';
 const AMOY_RPC_URL = process.env.AMOY_RPC_URL || 'https://rpc-amoy.polygon.technology';
@@ -62,5 +75,9 @@ module.exports = {
     tests: './test',
     cache: './cache',
     artifacts: './artifacts'
+  },
+  mocha: {
+    timeout: 40000,
+    extension: ['ts', 'js', 'cjs']
   }
 };

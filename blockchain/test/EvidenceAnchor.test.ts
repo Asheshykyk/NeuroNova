@@ -1,21 +1,22 @@
 import { expect } from 'chai';
-import { ethers } from 'hardhat';
+import hardhat from 'hardhat';
+const { ethers } = hardhat;
 import {
   computeCommitmentStructHashHex,
   computeDomainSeparatorHex,
   GENESIS_CHECKPOINT_HASH
-} from '../../packages/core/src/commitment';
+} from '../../packages/core/src/commitment.ts';
 import {
   buildMerkleTree,
   generateMerkleProof
-} from '../../packages/core/src/merkle';
+} from '../../packages/core/src/merkle.ts';
 import {
   TEST_BATCH_1,
   TEST_BATCH_2,
   TEST_EVENTS,
   TEST_LEAF_HASHES,
   TEST_VAULT_SIGNER_KEY
-} from '../../packages/core/src/test-vectors';
+} from '../../packages/core/src/test-vectors.ts';
 
 describe('EvidenceAnchor Smart Contract (Problem B3)', function () {
   let contract: any;

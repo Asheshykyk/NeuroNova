@@ -1,0 +1,72 @@
+{
+  "description": "TRUSTTRACE Problem B3 - EIP-712 BatchCommitment Test Vector",
+  "standard": "EIP-712",
+  "openZeppelinDependency": "@openzeppelin/contracts ^5.0.2",
+  "license": "MIT",
+  "domain": {
+    "name": "EvidenceAnchor",
+    "version": "1",
+    "chainId": 31337,
+    "verifyingContract": "0x5FbDB2315678afecb367f032d93F642f64180aa3"
+  },
+  "primaryType": "BatchCommitment",
+  "types": {
+    "EIP712Domain": [
+      {
+        "name": "name",
+        "type": "string"
+      },
+      {
+        "name": "version",
+        "type": "string"
+      },
+      {
+        "name": "chainId",
+        "type": "uint256"
+      },
+      {
+        "name": "verifyingContract",
+        "type": "address"
+      }
+    ],
+    "BatchCommitment": [
+      {
+        "name": "sourceId",
+        "type": "bytes32"
+      },
+      {
+        "name": "sequenceStart",
+        "type": "uint64"
+      },
+      {
+        "name": "sequenceEnd",
+        "type": "uint64"
+      },
+      {
+        "name": "leafCount",
+        "type": "uint64"
+      },
+      {
+        "name": "merkleRoot",
+        "type": "bytes32"
+      },
+      {
+        "name": "previousCheckpointHash",
+        "type": "bytes32"
+      }
+    ]
+  },
+  "commitment": {
+    "sourceId": "0x736f757263652d30310000000000000000000000000000000000000000000000",
+    "sequenceStart": 1,
+    "sequenceEnd": 5,
+    "leafCount": 5,
+    "merkleRoot": "0x2e02f236f0b4d4719b4cfb08de4e1eb815ad7fae1d134b2cfab9bc401f8eec4c",
+    "previousCheckpointHash": "0x0000000000000000000000000000000000000000000000000000000000000000"
+  },
+  "structHash": "0x3303ce2de046f2a609558e7353942ed8332c5d27557b19c0f7bf4cbdd1418dc2",
+  "domainSeparator": "0xdcd42ea47d4d2575f414897e89c70dd199bba61c4717aa19d67998a0579d7179",
+  "digest": "0x156cff1732e505db44310cf785b86a8caeb29816eef80f0a663a0543de396b3b",
+  "signer": "0xf39fd6e51aad88f6f4ce6ab8827279cfffb92266",
+  "signature": "0x2832052c6e31a4a9c1185540d77a5af81593f6967c58526acd680da3021e513d6514f79f301bc8b7f4fceb6875371d7279e98a27d03c83b6d16a55d244fc99101c"
+}
