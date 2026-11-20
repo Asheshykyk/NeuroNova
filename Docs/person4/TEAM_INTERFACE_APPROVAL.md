@@ -2,9 +2,36 @@
 
 ## Purpose
 
-This record lists the decisions required before Person 4 implements the dashboard, auditor CLI, and end-to-end tests. It reflects the current repository audit. Person 1's shared core and blockchain work are available only on `origin/feature/crypto-contract`. Person 2 and Person 3 implementation branches and contracts are not currently available.
+This record lists the decisions required before Person 4 implements the dashboard,
+auditor CLI, and end-to-end tests. It reflects the current repository audit.
+Person 2 confirms implementation of `POST /api/v1/logs/ingest`; Event, source,
+batch, checkpoint, and gap read APIs and WebSocket support remain unimplemented
+unless separately approved and documented.
 
 **PROPOSED — REQUIRES TEAM APPROVAL** No item below is a final interface until its owner records an approved value in the shared implementation or contract documentation.
+
+## Current confirmed and pending status
+
+### Confirmed implementation
+
+- [x] Person 2 implements `POST /api/v1/logs/ingest`. This is confirmed ingest
+  implementation, not approval of any dashboard read contract.
+
+### Confirmed Person 4 boundaries
+
+- [x] The dashboard remains in DEMO mode until approved live read APIs are available.
+- [x] No backend, Host Agent, crypto, or blockchain files are changed for read-contract proposals.
+- [x] WebSocket replay or resumption is not promised; reconnect uses REST refetch.
+- [x] The public checkpoint target is **Quai Orchard Cyprus-1, chain ID 15000**.
+- [x] Vault persistence, local Hardhat anchoring, public Quai anchoring, and independent
+  direct-RPC verification are separate conclusions.
+
+### Not yet implemented or approved
+
+- [ ] Event, source, batch, checkpoint, and gap read APIs.
+- [ ] WebSocket server.
+- [ ] ZIP evidence export.
+- [ ] Evidence detail and verification read contracts.
 
 ## Cross-team repository decisions
 
@@ -29,12 +56,25 @@ This record lists the decisions required before Person 4 implements the dashboar
 
 ## Person 2 approvals
 
+- [ ] Confirm or replace the proposed `GET /api/v1/sources` read contract.
+- [ ] Confirm or replace the proposed `GET /api/v1/events` read contract.
+- [ ] Confirm or replace the proposed `GET /api/v1/batches` read contract.
+- [ ] Confirm or replace the proposed `GET /api/v1/checkpoints` read contract.
+- [ ] Confirm or replace the proposed `GET /api/v1/gaps` read contract.
 - [ ] Confirm the final dashboard read routes, request parameters, pagination, source scoping, and error response shape.
 - [ ] Confirm the event, batch, verification-result, health, and evidence-detail response fields.
 - [ ] Confirm vault-assigned sequence ownership, durable-receipt acknowledgement point, reconciliation state vocabulary, and retention of raw bytes.
 - [ ] Confirm WebSocket endpoint, authentication, subscription scope, event envelope, replay or resumption semantics, duplicate handling, ordering, and liveness behaviour.
+- [ ] Confirm whether reconnect-triggered REST refetch is sufficient and whether the server promises any replay.
+- [ ] Confirm source/sequence ordering and the exact duplicate identity fields.
 - [ ] Confirm evidence-export transport and bundle content, including manifest fields, file hashes, raw-evidence representation, proof material, and bundle-versioning rule.
 - [ ] Confirm server verification labels are reported as server results and remain distinct from direct-RPC CLI verification.
+- [ ] Confirm local Hardhat and public Quai anchor fields remain distinct from direct-RPC verified status.
+
+The proposed contract is documented in
+[api-contract-proposal.md](./api-contract-proposal.md). It is not implementation
+authorization. The dashboard transport remains deliberately unimplemented for
+these read mappings until Person 2 signs off.
 
 ## Person 3 approvals
 
@@ -46,4 +86,8 @@ This record lists the decisions required before Person 4 implements the dashboar
 
 ## Approval gate
 
-Person 4 Phase 0 is ready for team approval once Persons 1, 2, and 3 approve their respective sections and the group decides the repository workspace paths, one package manager with its lockfile, and the shared-core import name. Until then, the Person 4 specifications are implementation-ready proposals, while frontend and CLI source code remain intentionally deferred.
+Person 4 live read integration is not ready until Person 2 approves the read
+REST and WebSocket contracts. The dashboard intentionally remains in DEMO mode.
+Person 1, Person 2, and Person 3 approval remains required for the broader
+interface freeze, including shared cryptography, read models, source semantics,
+and bundle formats.
