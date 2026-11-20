@@ -18,6 +18,12 @@
     "typecheck:backend": "npm run typecheck --workspace=@trusttrace/backend",
     "test:all": "npm run test:core && npm run test:blockchain && npm run test:backend"
   },
+  "devDependencies": {
+    "typescript": "^5.4.5"
+  },
+  "overrides": {
+    "typescript": "^5.4.5"
+  },
   "type": "module",
   "keywords": [
     "trusttrace",
