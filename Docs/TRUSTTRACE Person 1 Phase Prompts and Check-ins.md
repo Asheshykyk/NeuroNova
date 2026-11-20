@@ -64,7 +64,7 @@ Paste this at the top of every prompt below.
 
 ```
 PROJECT: TRUSTTRACE, The Big Hack 2.0, problem B3. TypeScript monorepo. I am Person 1
-(branch feature/crypto-contract), owning the shared `core` package and EvidenceAnchor.sol + ABI.
+(branch person-a), owning the shared `core` package and EvidenceAnchor.sol + ABI.
 LOCKED: leafHash = SHA256(0x00 || version || sourceId || vaultSequence || rawEventLength || rawEventBytes);
 node = SHA256(0x01 || left || right); odd node promoted unchanged (never duplicated);
 commitment binds sourceId, sequenceStart, sequenceEnd, leafCount, merkleRoot, previousCheckpointHash.
@@ -138,7 +138,7 @@ ACCEPTANCE: `npx hardhat test` and `pnpm --filter core test` pass; paste both ou
 ### Check-ins before G1 (H6)
 
 ```
-To P2: ABI + signCommitment are on feature/crypto-contract (commit <hash>). Wire your anchorer: vault
+To P2: ABI + signCommitment are on person-a (commit <hash>). Wire your anchorer: vault
 signer signs with core, relayer submits. Send me one real batch's commitment JSON so I can test it.
 To P4: verifyProof and the bundle field list are in core; build the CLI against them.
 To P3: any change to the raw-event bytes you send must be announced to me and P2.
