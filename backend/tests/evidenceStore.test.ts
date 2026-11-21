@@ -4,7 +4,9 @@ import os from 'node:os';
 import path from 'node:path';
 import test from 'node:test';
 import Database from 'better-sqlite3';
+import { encodeLeaf, computeLeafHashHex } from '@trusttrace/core';
 import { combineLockReleaseError, EvidenceStore, writeCompleteRecordAndSync } from '../src/storage/evidenceStore.ts';
+import { EvidenceBatchManager } from '../src/batching/EvidenceBatchManager.ts';
 
 function temporaryDirectory(testName: string): string {
   const directory = fs.mkdtempSync(path.join(os.tmpdir(), `trusttrace-${testName}-`));
@@ -53,6 +55,126 @@ test('preserves exact binary bytes and assigns monotonic sequences', async () =>
     const persistedRaw = Buffer.from(record.rawEventBytesBase64, 'base64');
     assert.deepEqual(persistedRaw, raw);
     assert.equal(persistedRaw.at(-1), 0x0a);
+  } finally {
+    store.close();
+  }
+});
+
+test('terminating LF and exact raw payload bytes survive JSONL persistence and match canonical leaf encoding', async () => {
+  const directory = temporaryDirectory('evidence-terminating-lf');
+  const store = await EvidenceStore.open({ directory });
+
+  const testPayloads = [
+    {
+      name: 'SSHD auth log line with terminating LF',
+      bytes: Buffer.from('Nov 20 22:15:01 web-server-1 sshd[12345]: Accepted publickey for root from 192.168.1.50 port 54321 ssh2: RSA SHA256:abc123xyz\n', 'utf8'),
+      hasLf: true,
+      hasCrlf: false
+    },
+    {
+      name: 'Windows / network log line with CRLF',
+      bytes: Buffer.from('EventLog 4624: An account was successfully logged on.\r\n', 'utf8'),
+      hasLf: true,
+      hasCrlf: true
+    },
+    {
+      name: 'Mixed binary payload with terminating LF',
+      bytes: Buffer.from([0x00, 0x01, 0xfe, 0xff, 0x20, 0x41, 0x42, 0x0a]),
+      hasLf: true,
+      hasCrlf: false
+    },
+    {
+      name: 'Raw bytes without trailing newline',
+      bytes: Buffer.from([0x7b, 0x22, 0x6d, 0x73, 0x67, 0x22, 0x3a, 0x22, 0x68, 0x69, 0x22, 0x7d]),
+      hasLf: false,
+      hasCrlf: false
+    }
+  ];
+
+  try {
+    const receipts = [];
+    for (let i = 0; i < testPayloads.length; i++) {
+      const item = testPayloads[i];
+      const receipt = await store.append({
+        sourceId: 'source-lf-test',
+        deliveryId: `deliv-lf-${i + 1}`,
+        streamId: 'auth.log',
+        fileIdentity: '/var/log/auth.log',
+        fileGeneration: 'dev:2049:ino:142857',
+        byteOffset: BigInt(i * 1024),
+        observedAt: 1732145400000000000n + BigInt(i),
+        rawEventBytes: item.bytes,
+        observationSource: 'host-agent'
+      });
+      receipts.push(receipt);
+    }
+
+    // Read raw JSONL directly from disk and prove exact byte preservation
+    const segmentFiles = fs.readdirSync(directory).filter((name) => /^evidence-\d{12}\.jsonl$/.test(name));
+    assert.equal(segmentFiles.length, 1);
+    const segmentPath = path.join(directory, segmentFiles[0]);
+    const lines = fs.readFileSync(segmentPath, 'utf8').trim().split('\n');
+    assert.equal(lines.length, testPayloads.length);
+
+    for (let i = 0; i < testPayloads.length; i++) {
+      const item = testPayloads[i];
+      const record = JSON.parse(lines[i]);
+      assert.equal(record.vaultSequence, String(i + 1));
+      assert.equal(record.rawEventLength, item.bytes.length);
+      assert.equal(record.fileIdentity, '/var/log/auth.log');
+      assert.equal(record.fileGeneration, 'dev:2049:ino:142857');
+
+      // Base64 decode directly from JSONL
+      const decodedBytes = Buffer.from(record.rawEventBytesBase64, 'base64');
+      assert.deepEqual(decodedBytes, item.bytes, `Decoded bytes for ${item.name} must strictly match original`);
+      assert.equal(decodedBytes.length, item.bytes.length);
+
+      if (item.hasLf) {
+        assert.equal(decodedBytes.at(-1), 0x0a, `Terminating byte for ${item.name} must be 0x0A (LF)`);
+      }
+      if (item.hasCrlf) {
+        assert.deepEqual(decodedBytes.subarray(-2), Buffer.from([0x0d, 0x0a]), `Terminating bytes for ${item.name} must be CRLF`);
+      }
+    }
+
+    // Confirm EvidenceBatchManager passes exact unmodified bytes into encodeLeaf (46 + N format)
+    const batchManager = new EvidenceBatchManager(store, {
+      directory,
+      batchMaxLeaves: 10
+    });
+    const batches = await batchManager.generateNextBatches();
+    assert.equal(batches.length, 1);
+    assert.equal(batches[0].evidenceMappings.length, testPayloads.length);
+
+    for (let i = 0; i < testPayloads.length; i++) {
+      const item = testPayloads[i];
+      const sequence = BigInt(i + 1);
+
+      // Compute canonical leaf encoding directly from original bytes
+      const canonicalPreimage = encodeLeaf({
+        version: 1,
+        sourceId: 'source-lf-test',
+        vaultSequence: sequence,
+        rawEventBytes: item.bytes
+      });
+
+      // Verify canonical 46 + N structure:
+      // tag(1) + version(1) + sourceId(32) + vaultSequence(8) + rawEventLength(4) = 46 bytes header
+      assert.equal(canonicalPreimage.length, 46 + item.bytes.length);
+      assert.deepEqual(canonicalPreimage.subarray(46), item.bytes);
+      if (item.hasLf) {
+        assert.equal(canonicalPreimage.at(-1), 0x0a);
+      }
+
+      // Verify batcher leaf hash matches canonical leaf hash
+      const expectedLeafHash = computeLeafHashHex({
+        version: 1,
+        sourceId: 'source-lf-test',
+        vaultSequence: sequence,
+        rawEventBytes: item.bytes
+      });
+      assert.equal(batches[0].evidenceMappings[i].leafHash, expectedLeafHash);
+    }
   } finally {
     store.close();
   }
