@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 import { ArgumentError, parseArgs, usage } from './args.js';
 import { verifyAgentChunkFiles } from './agentChunk.js';
+import { restBaseUrl, restIdentity, verifyRest } from './rest.js';
 import { verifyBundle } from './verify.js';
 import type { AgentChunkVerificationResult, VerificationResult } from './types.js';
 import { createQuaiEvidenceAnchor, QUAI_ORCHARD_REGISTRY, redactRpcUrl } from './rpc.js';
@@ -46,6 +47,26 @@ export async function run(argv: string[], writeOut = console.log, writeError = c
       writeOut(args.json
         ? JSON.stringify(result, (_key, value) => typeof value === 'bigint' ? value.toString(10) : value, 2)
         : formatAgentChunkResult(result));
+      return exitCodes[result.status];
+    }
+    if (args.command === 'verify-rest') {
+      const { baseUrl, sourceId, sequence, rpcUrl } = args;
+      if (!baseUrl || !sourceId || !sequence) {
+        throw new ArgumentError('verify-rest requires --base-url, --source-id, and --sequence.');
+      }
+      try {
+        restBaseUrl(baseUrl);
+        restIdentity(sourceId, sequence);
+      } catch {
+        throw new ArgumentError('verify-rest requires an HTTP(S) base URL without credentials, a bytes32 source ID, and a positive decimal uint64 sequence.');
+      }
+      const result = await verifyRest({ baseUrl, sourceId, sequence, rpcUrl });
+      writeOut(args.json ? JSON.stringify(result, null, 2) : [
+        `Overall: ${result.status} (${result.reasonCode})`,
+        `Tier 1: ${result.tier1.status}`,
+        ...result.tier1.stages.map((stage) => `  ${stage.stage}: ${stage.status} — ${stage.message}`),
+        `Tier 2: ${result.tier2.status} — ${result.tier2.message}`,
+      ].join('\n'));
       return exitCodes[result.status];
     }
     if (args.command !== 'verify' || !args.bundlePath || !args.rpcUrl) {

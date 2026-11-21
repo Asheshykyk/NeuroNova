@@ -23,9 +23,13 @@ export type ReasonCode =
   | 'CONTRACT_LOOKUP_UNAVAILABLE'
   | 'RPC_UNAVAILABLE'
   | 'RPC_RESPONSE_INVALID'
+  | 'REST_UNAVAILABLE'
+  | 'REST_RESPONSE_INVALID'
+  | 'REST_INCONSISTENT'
   | 'VERIFIER_INTERNAL_ERROR';
 
 export type StageName =
+  | 'rest-fetch'
   | 'bundle-parsing'
   | 'raw-byte-validation'
   | 'merkle-verification'

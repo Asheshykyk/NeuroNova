@@ -1,5 +1,8 @@
 export interface CliArguments {
-  command?: 'verify' | 'verify-agent-chunk';
+  command?: 'verify' | 'verify-agent-chunk' | 'verify-rest';
+  baseUrl?: string;
+  sourceId?: string;
+  sequence?: string;
   bundlePath?: string;
   evidencePath?: string;
   trustedAgentKeysPath?: string;
@@ -14,12 +17,10 @@ export function parseArgs(tokens: string[]): CliArguments {
   const parsed: CliArguments = { json: false, help: false };
   const remaining = [...tokens];
 
-  if (remaining[0] === 'verify') {
+  const command = remaining[0];
+  if (command === 'verify' || command === 'verify-agent-chunk' || command === 'verify-rest') {
+    parsed.command = command;
     remaining.shift();
-    parsed.command = 'verify';
-  } else if (remaining[0] === 'verify-agent-chunk') {
-    remaining.shift();
-    parsed.command = 'verify-agent-chunk';
   }
 
   while (remaining.length > 0) {
@@ -29,9 +30,13 @@ export function parseArgs(tokens: string[]): CliArguments {
     } else if (token === '--json') {
       parsed.json = true;
     } else if (token === '--bundle' || token === '--rpc-url'
-      || token === '--evidence' || token === '--trusted-agent-keys') {
+      || token === '--evidence' || token === '--trusted-agent-keys'
+      || token === '--base-url' || token === '--source-id' || token === '--sequence') {
       const value = remaining.shift();
       if (!value || value.startsWith('--')) throw new ArgumentError(`${token} requires a value.`);
+      if (token === '--base-url') parsed.baseUrl = value;
+      if (token === '--source-id') parsed.sourceId = value;
+      if (token === '--sequence') parsed.sequence = value;
       if (token === '--bundle') parsed.bundlePath = value;
       if (token === '--evidence') parsed.evidencePath = value;
       if (token === '--trusted-agent-keys') parsed.trustedAgentKeysPath = value;
@@ -58,6 +63,7 @@ export function parseArgs(tokens: string[]): CliArguments {
 export function usage(): string {
   return [
     'Usage: trusttrace verify --bundle <path> --rpc-url <url> [--json]',
+    '       trusttrace verify-rest --base-url <url> --source-id <bytes32> --sequence <uint64> [--rpc-url <tier1-url>] [--json]',
     '       trusttrace verify-agent-chunk --evidence <path> --trusted-agent-keys <path> [--json]',
     '',
     'Checks normalized evidence and requires a direct read-only RPC check before VERIFIED.',

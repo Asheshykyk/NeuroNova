@@ -16,6 +16,16 @@ node dist/index.js verify --bundle ./evidence-bundle.zip --rpc-url <rpc-url> --j
 
 The verifier declares `@trusttrace/core` as a local `file:` dependency. Disabling workspace installation here keeps npm operations scoped to the verifier. The verifier uses a temporary declaration for the consumed core exports because the shared source has a TypeScript diagnostic in `merkle.ts`. The compiled verifier imports the actual linked package.
 
+## Verify a REST event
+
+```sh
+node dist/index.js verify-rest --base-url http://127.0.0.1:3000/api/v1 --source-id <bytes32-source-id> --sequence 1 --json
+```
+
+Tier 1 checks exact event bytes, the canonical version-1 leaf, Merkle inclusion against the local batch root, and the Vault EIP-712 signature against the frozen local Hardhat deployment. If Vault reports an anchor and the evidence passes those checks, the Auditor independently reads the trusted EvidenceAnchor deployment over RPC. Use `--rpc-url` to override the Tier 1 transport endpoint. The expected chain ID, contract, and signer come from `@trusttrace/core/deployments`.
+
+Tier 2 requires an authenticated Orchard checkpoint, its preimage, and applicable predecessor evidence. The REST API does not supply them. Even a verified Tier 1 result leaves the overall verdict `UNVERIFIABLE` with `REQUIRED_EVIDENCE_MISSING` in that case. AgentChunk verification requires the original signed envelope and a trusted agent key via the separate `verify-agent-chunk` command.
+
 ## Verification inputs
 
 `verifyEvidence` in `src/verify.ts` accepts normalized inputs from a future approved bundle adapter. Each selected event needs exact bytes, a recorded SHA-256 payload hash, canonical leaf fields, and the ordered Merkle siblings. The batch needs the commitment, its struct hash, and Vault signature. If the immediately preceding commitment is supplied, the verifier checks the link to it. A successful result covers the supplied event proofs and the identified batch.

@@ -31,6 +31,7 @@ export function validateSequenceContinuity(previous: BatchCommitment | null, cur
   reason?: string;
 };
 export function verifyMerkleProof(leaf: Buffer, leafIndex: number, leafCount: number, siblings: string[], root: string): boolean;
+export function recoverCommitmentSigner(domain: EIP712Domain, commitment: BatchCommitment, signature: string): string;
 export function verifyCommitmentSignature(domain: EIP712Domain, commitment: BatchCommitment, signature: string, signer: string): boolean;
 export interface CheckpointInput {
   previousCheckpointDigest: string | Uint8Array | Buffer;
