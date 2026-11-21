@@ -10,7 +10,7 @@ import type { SignedEventRequest } from "../src/signed-event.ts";
 function request(
   deliveryId: string,
   byteOffset: bigint,
-  rawEventBase64 = "AQID",
+  rawEventBase64 = "AQIDCg==",
 ): SignedEventRequest {
   return {
     schemaVersion: 1,
@@ -18,6 +18,7 @@ function request(
     deliveryId,
     streamId: "auth.log",
     fileIdentity: "inode:42",
+    fileGeneration: "dev:2049:ino:42",
     byteOffset: byteOffset.toString(),
     observedAt: "1732145400000000000",
     rawEventBase64,
@@ -107,7 +108,7 @@ test("passes the exact stored request unchanged to the client", async () => {
     const signed = request(
       "550e8400-e29b-41d4-a716-446655440024",
       9007199254740993n,
-      "AAECAw==",
+      "AAECAwo=",
     );
     await spool.enqueue(signed);
 

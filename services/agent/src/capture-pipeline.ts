@@ -1,6 +1,7 @@
 import { randomUUID } from "node:crypto";
 import type { KeyObject } from "node:crypto";
-import { open } from "node:fs/promises";
+import { open, readdir, stat } from "node:fs/promises";
+import { dirname, join } from "node:path";
 import { AuthLogFollower } from "./auth-log-follower.ts";
 import { AgentCheckpointStore } from "./agent-checkpoint-store.ts";
 import { DurableSpool } from "./durable-spool.ts";
@@ -24,30 +25,90 @@ export interface CapturePipelineOptions {
   observedAtNsFactory?: () => bigint;
 }
 
+function generationFromStat(value: {
+  dev: bigint | number;
+  ino: bigint | number;
+}): string {
+  return `dev:${BigInt(value.dev)}:ino:${BigInt(value.ino)}`;
+}
+
 export class CapturePipeline {
   private readonly options: CapturePipelineOptions;
   private readonly follower: AuthLogFollower;
-  private readonly pendingByOffset: Map<bigint, SignedEventRequest>;
+  private readonly pendingByOffset: Map<string, SignedEventRequest>;
   private persistedCheckpoint: bigint;
+  private persistedGeneration: string | undefined;
   private failed = false;
+  private closed = false;
 
   constructor(
     options: CapturePipelineOptions,
     follower: AuthLogFollower,
-    pendingByOffset: Map<bigint, SignedEventRequest>,
+    pendingByOffset: Map<string, SignedEventRequest>,
     persistedCheckpoint: bigint,
+    persistedGeneration?: string,
   ) {
     this.options = options;
     this.follower = follower;
     this.pendingByOffset = pendingByOffset;
     this.persistedCheckpoint = persistedCheckpoint;
+    this.persistedGeneration = persistedGeneration;
   }
 
-  private async advanceCheckpoint(nextByteOffset: bigint): Promise<void> {
-    if (nextByteOffset > this.persistedCheckpoint) {
-      await this.options.checkpointStore.save(nextByteOffset);
-      this.persistedCheckpoint = nextByteOffset;
+  private async advanceCheckpoint(
+    nextByteOffset: bigint,
+    fileGeneration: string,
+  ): Promise<void> {
+    if (this.persistedGeneration !== fileGeneration) {
+      const activeGeneration = this.follower.getFileGeneration();
+      if (
+        this.persistedGeneration !== undefined &&
+        activeGeneration !== fileGeneration
+      ) {
+        return;
+      }
+    } else if (nextByteOffset <= this.persistedCheckpoint) {
+      return;
     }
+    await this.options.checkpointStore.save(
+      nextByteOffset,
+      fileGeneration,
+    );
+    this.persistedCheckpoint = nextByteOffset;
+    this.persistedGeneration = fileGeneration;
+  }
+
+  async close(): Promise<void> {
+    if (this.closed) return;
+    this.closed = true;
+    await this.follower.close();
+  }
+
+  private pendingKey(
+    fileGeneration: string,
+    byteOffset: bigint,
+  ): string {
+    return `${fileGeneration}:${byteOffset}`;
+  }
+
+  private async findGenerationFile(
+    fileGeneration: string,
+  ): Promise<string | undefined> {
+    const directory = dirname(this.options.logPath);
+    const entries = await readdir(directory, { withFileTypes: true });
+    for (const entry of entries) {
+      if (!entry.isFile()) continue;
+      const candidate = join(directory, entry.name);
+      try {
+        const metadata = await stat(candidate, { bigint: true });
+        if (generationFromStat(metadata) === fileGeneration) {
+          return candidate;
+        }
+      } catch {
+        // Candidate disappeared during recovery.
+      }
+    }
+    return undefined;
   }
 
   async captureOnce(): Promise<SignedEventRequest[]> {
@@ -58,67 +119,87 @@ export class CapturePipeline {
     }
 
     const captured: SignedEventRequest[] = [];
+    const recoveredRequests = new Map<string, SignedEventRequest>();
 
     try {
-      const recoveredOffsets = [...this.pendingByOffset.keys()].sort((left, right) =>
-        left < right ? -1 : left > right ? 1 : 0,
+      const recovered = [...this.pendingByOffset.entries()].sort(
+        ([leftKey], [rightKey]) => leftKey.localeCompare(rightKey),
       );
 
-      for (const byteOffset of recoveredOffsets) {
-        const existing = this.pendingByOffset.get(byteOffset);
-        if (existing === undefined) {
-          continue;
+      for (const [key, existing] of recovered) {
+        const fileGeneration = existing.fileGeneration;
+        const byteOffset = BigInt(existing.byteOffset);
+        const candidate = await this.findGenerationFile(fileGeneration);
+        if (!candidate) {
+          throw new Error(
+            `Pending request conflict: file generation ${fileGeneration} was not found`,
+          );
         }
 
-        const length = existing.rawEventLength;
-        const buffer = Buffer.alloc(length + 1);
-        const handle = await open(this.options.logPath, "r");
+        const handle = await open(candidate, "r");
         try {
-          const result = await handle.read(buffer, 0, length + 1, byteOffset);
-          if (result.bytesRead !== length + 1) {
+          const handleStat = await handle.stat({ bigint: true });
+          if (generationFromStat(handleStat) !== fileGeneration) {
             throw new Error(
-              `Pending request conflict at byteOffset ${byteOffset}: file does not contain ${length + 1} bytes including LF`,
+              `Pending request conflict: open file is not generation ${fileGeneration}`,
+            );
+          }
+          const length = existing.rawEventLength;
+          const buffer = Buffer.alloc(length);
+          const result = await handle.read(
+            buffer,
+            0,
+            length,
+            byteOffset,
+          );
+          if (result.bytesRead !== length) {
+            throw new Error(
+              `Pending request conflict at byteOffset ${byteOffset}: short read in generation ${fileGeneration}`,
+            );
+          }
+          if (buffer.length === 0 || buffer.at(-1) !== 0x0a) {
+            throw new Error(
+              `Pending request conflict at byteOffset ${byteOffset}: terminating LF is missing`,
+            );
+          }
+          if (
+            buffer.toString("base64") !== existing.rawEventBase64 ||
+            buffer.length !== existing.rawEventLength
+          ) {
+            throw new Error(
+              `Pending request conflict at byteOffset ${byteOffset}: raw event bytes differ`,
             );
           }
         } finally {
           await handle.close();
         }
-
-        if (buffer[length] !== 0x0a) {
-          throw new Error(
-            `Pending request conflict at byteOffset ${byteOffset}: LF delimiter is missing`,
-          );
-        }
-
-        const payload = buffer.subarray(0, length);
-        if (
-          payload.toString("base64") !== existing.rawEventBase64 ||
-          payload.length !== existing.rawEventLength
-        ) {
-          throw new Error(
-            `Pending request conflict at byteOffset ${byteOffset}: raw event bytes differ`,
-          );
-        }
-
-        await this.advanceCheckpoint(byteOffset + BigInt(length + 1));
         captured.push(existing);
-        this.pendingByOffset.delete(byteOffset);
+        recoveredRequests.set(key, existing);
+        this.pendingByOffset.delete(key);
       }
 
       const events = await this.follower.pollOnce();
       for (const event of events) {
-        const bytes = event.rawEventBytes;
-        const base64 = bytes.toString("base64");
-        const existing = this.pendingByOffset.get(event.byteOffset);
+        const fileGeneration =
+          event.fileGeneration ?? this.follower.getFileGeneration();
+        if (!fileGeneration) {
+          throw new Error("Auth log event has no file generation");
+        }
 
+        const key = this.pendingKey(fileGeneration, event.byteOffset);
+        const existing =
+          this.pendingByOffset.get(key) ?? recoveredRequests.get(key);
+        const wasRecovered = recoveredRequests.has(key);
         let request: SignedEventRequest;
+
         if (existing !== undefined) {
           if (
-            existing.rawEventBase64 !== base64 ||
-            existing.rawEventLength !== bytes.length
+            existing.rawEventBase64 !== event.rawEventBytes.toString("base64") ||
+            existing.rawEventLength !== event.rawEventBytes.length ||
+            existing.fileGeneration !== fileGeneration
           ) {
             throw new Error(
-              `Pending request conflict at byteOffset ${event.byteOffset}: raw event bytes differ`,
+              `Pending request conflict at byteOffset ${event.byteOffset} and generation ${fileGeneration}: raw event bytes differ`,
             );
           }
           request = existing;
@@ -132,6 +213,7 @@ export class CapturePipeline {
             deliveryId,
             this.options.streamId,
             this.options.fileIdentity,
+            fileGeneration,
             observedAtNs(),
             event,
             this.options.privateKey,
@@ -140,10 +222,14 @@ export class CapturePipeline {
         }
 
         await this.advanceCheckpoint(
-          event.byteOffset + BigInt(event.rawEventBytes.length + 1),
+          event.byteOffset + BigInt(event.rawEventBytes.length),
+          fileGeneration,
         );
-        captured.push(request);
-        this.pendingByOffset.delete(event.byteOffset);
+        if (!wasRecovered) {
+          captured.push(request);
+        }
+        this.pendingByOffset.delete(key);
+        recoveredRequests.delete(key);
       }
     } catch (error) {
       this.failed = true;
@@ -157,10 +243,10 @@ export class CapturePipeline {
 export async function createCapturePipeline(
   options: CapturePipelineOptions,
 ): Promise<CapturePipeline> {
-  let checkpoint = await options.checkpointStore.load();
-  const persistedCheckpoint = checkpoint;
+  const checkpoint = await options.checkpointStore.loadCheckpoint();
+  const followerOffset = checkpoint?.nextByteOffset ?? 0n;
   const pending = await options.spool.listPending();
-  const pendingByOffset = new Map<bigint, SignedEventRequest>();
+  const pendingByOffset = new Map<string, SignedEventRequest>();
 
   for (const request of pending) {
     if (
@@ -171,28 +257,27 @@ export async function createCapturePipeline(
       continue;
     }
 
-    const byteOffset = BigInt(request.byteOffset);
-    const nextByteOffset =
-      byteOffset + BigInt(request.rawEventLength + 1);
-
-    if (nextByteOffset > checkpoint) {
-      checkpoint = nextByteOffset;
-    }
-
-    const existing = pendingByOffset.get(byteOffset);
-    if (existing !== undefined) {
+    const key = `${request.fileGeneration}:${BigInt(request.byteOffset)}`;
+    if (pendingByOffset.has(key)) {
       throw new Error(
-        `Pending request conflict at byteOffset ${byteOffset}: multiple matching requests`,
+        `Pending request conflict at byteOffset ${request.byteOffset} and generation ${request.fileGeneration}: multiple matching requests`,
       );
     }
-    pendingByOffset.set(byteOffset, request);
+    pendingByOffset.set(key, request);
   }
 
-  const follower = new AuthLogFollower(options.logPath, checkpoint);
+  const follower = new AuthLogFollower(
+    options.logPath,
+    followerOffset,
+    64 * 1024,
+    checkpoint?.fileGeneration,
+  );
+
   return new CapturePipeline(
     options,
     follower,
     pendingByOffset,
-    persistedCheckpoint,
+    checkpoint?.nextByteOffset ?? 0n,
+    checkpoint?.fileGeneration,
   );
 }

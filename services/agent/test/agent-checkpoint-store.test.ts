@@ -38,7 +38,7 @@ test("save and reload checkpoint", async () => {
       "inode:42",
     );
 
-    await store.save(123n);
+    await store.save(123n, "dev:2049:ino:42");
     assert.equal(await new AgentCheckpointStore(
       path,
       "host-agent-cyprus-01",
@@ -59,7 +59,7 @@ test("supports a large BigInt offset", async () => {
       "inode:42",
     );
 
-    await store.save(offset);
+    await store.save(offset, "dev:2049:ino:42");
     assert.equal(await store.load(), offset);
   });
 });
@@ -87,6 +87,7 @@ test("rejects identity-mismatched checkpoint", async () => {
       sourceId: "different-source",
       streamId: "auth.log",
       fileIdentity: "inode:42",
+      fileGeneration: "dev:2049:ino:42",
       nextByteOffset: "10",
     }));
     const store = new AgentCheckpointStore(
@@ -110,9 +111,9 @@ test("refuses to move checkpoint backward", async () => {
       "inode:42",
     );
 
-    await store.save(100n);
+    await store.save(100n, "dev:2049:ino:42");
     await assert.rejects(
-      store.save(99n),
+      store.save(99n, "dev:2049:ino:42"),
       /Refusing to move agent checkpoint backward/,
     );
     assert.equal(await store.load(), 100n);

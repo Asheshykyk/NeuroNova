@@ -10,10 +10,11 @@ function request(): SignedEventRequest {
     deliveryId: "550e8400-e29b-41d4-a716-446655440000",
     streamId: "auth.log",
     fileIdentity: "inode:142857",
+    fileGeneration: "dev:2049:ino:142857",
     byteOffset: "1048576",
     observedAt: "1732145400000000000",
-    rawEventBase64: "AQID",
-    rawEventLength: 3,
+    rawEventBase64: "AQIDCg==",
+    rawEventLength: 4,
     signature: "0x" + "ab".repeat(64),
   };
   assert.equal(

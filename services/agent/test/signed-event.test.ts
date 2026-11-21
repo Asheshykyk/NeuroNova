@@ -15,6 +15,7 @@ test("buildSignedEvent matches the agent chunk vector", async () => {
     vector.chunk.deliveryId,
     vector.chunk.streamId,
     vector.chunk.fileIdentity,
+    vector.chunk.fileGeneration,
     BigInt(vector.chunk.observedAt),
     {
       byteOffset: BigInt(vector.chunk.byteOffset),
@@ -28,6 +29,7 @@ test("buildSignedEvent matches the agent chunk vector", async () => {
   assert.equal(request.deliveryId, vector.chunk.deliveryId);
   assert.equal(request.streamId, vector.chunk.streamId);
   assert.equal(request.fileIdentity, vector.chunk.fileIdentity);
+  assert.equal(request.fileGeneration, vector.chunk.fileGeneration);
   assert.equal(request.byteOffset, vector.chunk.byteOffset);
   assert.equal(request.observedAt, vector.chunk.observedAt);
   assert.equal(
@@ -41,12 +43,13 @@ test("buildSignedEvent matches the agent chunk vector", async () => {
 
 test("non-UTF-8 event bytes round-trip through base64", () => {
   const pair = generateAgentKeyPair();
-  const bytes = Buffer.from([0xff, 0x00, 0xfe, 0x80, 0x0d]);
+  const bytes = Buffer.from([0xff, 0x00, 0xfe, 0x80, 0x0d, 0x0a]);
   const request = buildSignedEvent(
     "host-agent-cyprus-01",
     "550e8400-e29b-41d4-a716-446655440000",
     "auth.log",
-    "inode:42",
+    "/var/log/auth.log",
+    "dev:2049:ino:42",
     1732145400000000000n,
     { byteOffset: 99n, rawEventBytes: bytes },
     pair.privateKey,
@@ -58,7 +61,7 @@ test("non-UTF-8 event bytes round-trip through base64", () => {
   assert.match(request.signature, /^0x[0-9a-f]{128}$/);
 });
 
-test("rejects event bytes containing LF", () => {
+test("rejects event bytes without terminating LF", () => {
   const pair = generateAgentKeyPair();
 
   assert.throws(
@@ -66,12 +69,13 @@ test("rejects event bytes containing LF", () => {
       "host-agent-cyprus-01",
       "550e8400-e29b-41d4-a716-446655440000",
       "auth.log",
-      "inode:42",
+      "/var/log/auth.log",
+      "dev:2049:ino:42",
       0n,
       { byteOffset: 0n, rawEventBytes: Buffer.from([0xff, 0x0a, 0x80]) },
       pair.privateKey,
     ),
-    /rawEventBytes must not contain LF \(0x0A\)/,
+    /rawEventBytes must end with LF \(0x0A\)/,
   );
 });
 
@@ -83,7 +87,8 @@ test("rejects a deliveryId that is not a UUID", () => {
       "host-agent-cyprus-01",
       "not-a-uuid",
       "auth.log",
-      "inode:42",
+      "/var/log/auth.log",
+      "dev:2049:ino:42",
       0n,
       { byteOffset: 0n, rawEventBytes: Buffer.alloc(0) },
       pair.privateKey,

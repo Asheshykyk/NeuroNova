@@ -8,6 +8,7 @@ export interface SignedEventRequest {
   deliveryId: string;
   streamId: string;
   fileIdentity: string;
+  fileGeneration: string;
   byteOffset: string;
   observedAt: string;
   rawEventBase64: string;
@@ -35,13 +36,18 @@ export function buildSignedEvent(
   deliveryId: string,
   streamId: string,
   fileIdentity: string,
+  fileGeneration: string,
   observedAtNs: bigint,
   rawEvent: RawLineEvent,
   privateKey: Ed25519PrivateKey,
 ): SignedEventRequest {
   requireUuid(deliveryId);
-  if (rawEvent.rawEventBytes.includes(0x0a)) {
-    throw new Error("rawEventBytes must not contain LF (0x0A)");
+
+  if (
+    rawEvent.rawEventBytes.length === 0 ||
+    rawEvent.rawEventBytes.at(-1) !== 0x0a
+  ) {
+    throw new Error("rawEventBytes must end with LF (0x0A)");
   }
 
   const signature = signAgentChunkHex({
@@ -50,6 +56,7 @@ export function buildSignedEvent(
     payload: rawEvent.rawEventBytes,
     streamId,
     fileIdentity,
+    fileGeneration,
     byteOffset: rawEvent.byteOffset,
     observedAt: observedAtNs,
   }, privateKey);
@@ -60,6 +67,7 @@ export function buildSignedEvent(
     deliveryId,
     streamId,
     fileIdentity,
+    fileGeneration,
     byteOffset: rawEvent.byteOffset.toString(),
     observedAt: observedAtNs.toString(),
     rawEventBase64: rawEvent.rawEventBytes.toString("base64"),

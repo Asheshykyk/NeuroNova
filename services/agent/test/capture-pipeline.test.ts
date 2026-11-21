@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { appendFile, mkdtemp, rm, writeFile } from "node:fs/promises";
+import { appendFile, mkdtemp, rm, writeFile, stat, rename } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
@@ -23,7 +23,9 @@ async function setup(contents = "") {
 
   const sourceId = "host-agent-cyprus-01";
   const streamId = "auth.log";
-  const fileIdentity = "inode:42";
+  const fileIdentity = "/var/log/auth.log";
+  const metadata = await stat(logPath, { bigint: true });
+  const fileGeneration = `dev:${metadata.dev}:ino:${metadata.ino}`;
   const privateKey = generateAgentKeyPair(Buffer.alloc(32, 7)).privateKey;
   const checkpointStore = new AgentCheckpointStore(
     checkpointPath,
@@ -54,6 +56,7 @@ async function setup(contents = "") {
     sourceId,
     streamId,
     fileIdentity,
+    fileGeneration,
     privateKey,
     checkpointStore,
     spool,
@@ -70,6 +73,7 @@ test("captures and persists multiple lines", async () => {
     assert.equal((await state.checkpointStore.load()), 6n);
     assert.equal((await state.spool.listPending()).length, 2);
   } finally {
+    await state.pipeline.close();
     await rm(state.directory, { recursive: true, force: true });
   }
 });
@@ -85,21 +89,23 @@ test("incremental append does not replay prior lines", async () => {
     assert.equal(captured[0].byteOffset, "6");
     assert.equal((await state.checkpointStore.load()), 13n);
   } finally {
+    await state.pipeline.close();
     await rm(state.directory, { recursive: true, force: true });
   }
 });
 
 test("recovers a pending event when checkpoint save fails", async () => {
   const state = await setup("recover\n");
+  let recovered: Awaited<ReturnType<typeof createCapturePipeline>> | undefined;
   try {
     const originalSave = state.checkpointStore.save.bind(state.checkpointStore);
     let fail = true;
-    state.checkpointStore.save = async (offset: bigint) => {
+    state.checkpointStore.save = async (offset: bigint, fileGeneration?: string) => {
       if (fail) {
         fail = false;
         throw new Error("simulated checkpoint save failure");
       }
-      await originalSave(offset);
+      await originalSave(offset, fileGeneration);
     };
 
     await assert.rejects(
@@ -117,11 +123,12 @@ test("recovers a pending event when checkpoint save fails", async () => {
 
     let recoveredDeliveryId: string | undefined;
     let recoveryTimestamp = 1732145400000000001n;
-    const recovered = await createCapturePipeline({
+    recovered = await createCapturePipeline({
       logPath: state.logPath,
       sourceId: state.sourceId,
       streamId: state.streamId,
       fileIdentity: state.fileIdentity,
+      fileGeneration: state.fileGeneration,
       privateKey: state.privateKey,
       checkpointStore: state.checkpointStore,
       spool: state.spool,
@@ -137,12 +144,15 @@ test("recovers a pending event when checkpoint save fails", async () => {
     assert.equal(recoveredEvents[0].deliveryId, pending[0].deliveryId);
     assert.equal(recoveredDeliveryId, undefined);
   } finally {
+    await state.pipeline.close();
+    await recovered?.close();
     await rm(state.directory, { recursive: true, force: true });
   }
 });
 
 test("rejects pending event raw bytes conflicting with the file", async () => {
   const state = await setup("file bytes\n");
+  let conflicting: Awaited<ReturnType<typeof createCapturePipeline>> | undefined;
   try {
     await state.spool.enqueue({
       schemaVersion: 1,
@@ -150,14 +160,15 @@ test("rejects pending event raw bytes conflicting with the file", async () => {
       deliveryId: deliveryIds[0],
       streamId: state.streamId,
       fileIdentity: state.fileIdentity,
+      fileGeneration: state.fileGeneration,
       byteOffset: "0",
       observedAt: "1732145400000000000",
-      rawEventBase64: Buffer.from("wrong bytes").toString("base64"),
-      rawEventLength: 11,
+      rawEventBase64: Buffer.from("wrong bytes\n").toString("base64"),
+      rawEventLength: 12,
       signature: "0x" + "ab".repeat(64),
     });
 
-    const conflicting = await createCapturePipeline({
+    conflicting = await createCapturePipeline({
       logPath: state.logPath,
       sourceId: state.sourceId,
       streamId: state.streamId,
@@ -176,12 +187,15 @@ test("rejects pending event raw bytes conflicting with the file", async () => {
       /construct a new instance/,
     );
   } finally {
+    await state.pipeline.close();
+    await conflicting?.close();
     await rm(state.directory, { recursive: true, force: true });
   }
 });
 
 test("rejects pending event without LF and leaves a missing checkpoint at zero", async () => {
   const state = await setup("match!");
+  let conflicting: Awaited<ReturnType<typeof createCapturePipeline>> | undefined;
   try {
     await state.spool.enqueue({
       schemaVersion: 1,
@@ -189,14 +203,15 @@ test("rejects pending event without LF and leaves a missing checkpoint at zero",
       deliveryId: deliveryIds[0],
       streamId: state.streamId,
       fileIdentity: state.fileIdentity,
+      fileGeneration: state.fileGeneration,
       byteOffset: "0",
       observedAt: "1732145400000000000",
-      rawEventBase64: Buffer.from("match").toString("base64"),
-      rawEventLength: 5,
+      rawEventBase64: Buffer.from("match\n").toString("base64"),
+      rawEventLength: 6,
       signature: "0x" + "ab".repeat(64),
     });
 
-    const conflicting = await createCapturePipeline({
+    conflicting = await createCapturePipeline({
       logPath: state.logPath,
       sourceId: state.sourceId,
       streamId: state.streamId,
@@ -208,16 +223,19 @@ test("rejects pending event without LF and leaves a missing checkpoint at zero",
 
     await assert.rejects(
       conflicting.captureOnce(),
-      /LF delimiter is missing/,
+      /terminating LF is missing/,
     );
     assert.equal(await state.checkpointStore.load(), 0n);
   } finally {
+    await state.pipeline.close();
+    await conflicting?.close();
     await rm(state.directory, { recursive: true, force: true });
   }
 });
 
 test("recovers an older pending request when checkpoint is beyond it", async () => {
   const state = await setup("old\n" + "x".repeat(16));
+  let recovered: Awaited<ReturnType<typeof createCapturePipeline>> | undefined;
   try {
     await state.spool.enqueue({
       schemaVersion: 1,
@@ -225,15 +243,16 @@ test("recovers an older pending request when checkpoint is beyond it", async () 
       deliveryId: deliveryIds[0],
       streamId: state.streamId,
       fileIdentity: state.fileIdentity,
+      fileGeneration: state.fileGeneration,
       byteOffset: "0",
       observedAt: "1732145400000000000",
-      rawEventBase64: Buffer.from("old").toString("base64"),
-      rawEventLength: 3,
+      rawEventBase64: Buffer.from("old\n").toString("base64"),
+      rawEventLength: 4,
       signature: "0x" + "ab".repeat(64),
     });
-    await state.checkpointStore.save(20n);
+    await state.checkpointStore.save(20n, state.fileGeneration);
 
-    const recovered = await createCapturePipeline({
+    recovered = await createCapturePipeline({
       logPath: state.logPath,
       sourceId: state.sourceId,
       streamId: state.streamId,
@@ -248,6 +267,104 @@ test("recovers an older pending request when checkpoint is beyond it", async () 
     assert.equal(recoveredEvents[0].deliveryId, deliveryIds[0]);
     assert.equal(await state.checkpointStore.load(), 20n);
   } finally {
+    await state.pipeline.close();
+    await recovered?.close();
+    await rm(state.directory, { recursive: true, force: true });
+  }
+});
+
+test("old pending offset does not affect active generation checkpoint", async () => {
+  const state = await setup("active\n");
+  let recovered: Awaited<ReturnType<typeof createCapturePipeline>> | undefined;
+  try {
+    await state.checkpointStore.save(7n, state.fileGeneration);
+    await state.spool.enqueue({
+      schemaVersion: 1,
+      sourceId: state.sourceId,
+      deliveryId: deliveryIds[0],
+      streamId: state.streamId,
+      fileIdentity: state.fileIdentity,
+      fileGeneration: "dev:2049:ino:999",
+      byteOffset: "200",
+      observedAt: "1732145400000000000",
+      rawEventBase64: Buffer.from("old\n").toString("base64"),
+      rawEventLength: 4,
+      signature: "0x" + "ab".repeat(64),
+    });
+
+    recovered = await createCapturePipeline({
+      logPath: state.logPath,
+      sourceId: state.sourceId,
+      streamId: state.streamId,
+      fileIdentity: state.fileIdentity,
+      privateKey: state.privateKey,
+      checkpointStore: state.checkpointStore,
+      spool: state.spool,
+    });
+
+    await assert.rejects(
+      recovered.captureOnce(),
+      /file generation dev:2049:ino:999 was not found/,
+    );
+    assert.equal(await state.checkpointStore.load(), 7n);
+  } finally {
+    await state.pipeline.close();
+    await recovered?.close();
+    await rm(state.directory, { recursive: true, force: true });
+  }
+});
+
+test("old pending event does not move checkpoint or skip active generation records", async () => {
+  const state = await setup("old\n");
+  let recovered: Awaited<ReturnType<typeof createCapturePipeline>> | undefined;
+  try {
+    const oldMetadata = await stat(state.logPath, { bigint: true });
+    const oldGeneration = `dev:${oldMetadata.dev}:ino:${oldMetadata.ino}`;
+    await rename(state.logPath, `${state.logPath}.1`);
+    await writeFile(state.logPath, "active\n");
+    const activeMetadata = await stat(state.logPath, { bigint: true });
+    const activeGeneration =
+      `dev:${activeMetadata.dev}:ino:${activeMetadata.ino}`;
+
+    await state.spool.enqueue({
+      schemaVersion: 1,
+      sourceId: state.sourceId,
+      deliveryId: deliveryIds[0],
+      streamId: state.streamId,
+      fileIdentity: state.fileIdentity,
+      fileGeneration: oldGeneration,
+      byteOffset: "0",
+      observedAt: "1732145400000000000",
+      rawEventBase64: Buffer.from("old\n").toString("base64"),
+      rawEventLength: 4,
+      signature: "0x" + "ab".repeat(64),
+    });
+
+    recovered = await createCapturePipeline({
+      logPath: state.logPath,
+      sourceId: state.sourceId,
+      streamId: state.streamId,
+      fileIdentity: state.fileIdentity,
+      privateKey: state.privateKey,
+      checkpointStore: state.checkpointStore,
+      spool: state.spool,
+    });
+
+    const events = await recovered.captureOnce();
+    assert.equal(events.length, 2);
+    assert.equal(events[0].fileGeneration, oldGeneration);
+    assert.equal(events[1].fileGeneration, activeGeneration);
+    assert.equal(
+      events[1].rawEventBase64,
+      Buffer.from("active\n").toString("base64"),
+    );
+    assert.equal(
+      await state.checkpointStore.load(),
+      7n,
+    );
+  } finally {
+    await state.pipeline.close();
+    await recovered?.close();
     await rm(state.directory, { recursive: true, force: true });
   }
 });

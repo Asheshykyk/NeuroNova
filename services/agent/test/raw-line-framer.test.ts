@@ -8,8 +8,8 @@ test("emits multiple complete lines", () => {
 
   assert.deepEqual(events.map((event) => event.byteOffset), [0n, 6n]);
   assert.deepEqual(events.map((event) => event.rawEventBytes), [
-    Buffer.from("first"),
-    Buffer.from("second"),
+    Buffer.from("first\n"),
+    Buffer.from("second\n"),
   ]);
 });
 
@@ -21,10 +21,10 @@ test("supports lines split across pushes", () => {
   const events = framer.push(Buffer.from("lo\nnext"));
   assert.equal(events.length, 1);
   assert.equal(events[0].byteOffset, 0n);
-  assert.deepEqual(events[0].rawEventBytes, Buffer.from("hello"));
+  assert.deepEqual(events[0].rawEventBytes, Buffer.from("hello\n"));
   assert.deepEqual(framer.push(Buffer.from("\n")), [{
     byteOffset: 6n,
-    rawEventBytes: Buffer.from("next"),
+    rawEventBytes: Buffer.from("next\n"),
   }]);
 });
 
@@ -32,8 +32,8 @@ test("preserves CR bytes from CRLF input", () => {
   const framer = new RawLineFramer();
   const events = framer.push(Buffer.from("alpha\r\nbeta\r\n"));
 
-  assert.deepEqual(events[0].rawEventBytes, Buffer.from("alpha\r"));
-  assert.deepEqual(events[1].rawEventBytes, Buffer.from("beta\r"));
+  assert.deepEqual(events[0].rawEventBytes, Buffer.from("alpha\r\n"));
+  assert.deepEqual(events[1].rawEventBytes, Buffer.from("beta\r\n"));
 });
 
 test("preserves non-UTF-8 bytes", () => {
@@ -42,7 +42,7 @@ test("preserves non-UTF-8 bytes", () => {
 
   assert.deepEqual(events, [{
     byteOffset: 0n,
-    rawEventBytes: Buffer.from([0xff, 0x00, 0x80]),
+    rawEventBytes: Buffer.from([0xff, 0x00, 0x80, 0x0a]),
   }]);
 });
 
@@ -51,11 +51,11 @@ test("includes blank lines", () => {
   const events = framer.push(Buffer.from("\n\nx\n"));
 
   assert.equal(events.length, 3);
-  assert.deepEqual(events[0].rawEventBytes, Buffer.alloc(0));
+  assert.deepEqual(events[0].rawEventBytes, Buffer.from("\n"));
   assert.equal(events[0].byteOffset, 0n);
-  assert.deepEqual(events[1].rawEventBytes, Buffer.alloc(0));
+  assert.deepEqual(events[1].rawEventBytes, Buffer.from("\n"));
   assert.equal(events[1].byteOffset, 1n);
-  assert.deepEqual(events[2].rawEventBytes, Buffer.from("x"));
+  assert.deepEqual(events[2].rawEventBytes, Buffer.from("x\n"));
   assert.equal(events[2].byteOffset, 2n);
 });
 
@@ -65,8 +65,8 @@ test("uses a nonzero initial offset", () => {
 
   assert.deepEqual(events.map((event) => event.byteOffset), [123n, 125n]);
   assert.deepEqual(events.map((event) => event.rawEventBytes), [
-    Buffer.from("a"),
-    Buffer.from("bc"),
+    Buffer.from("a\n"),
+    Buffer.from("bc\n"),
   ]);
 });
 
@@ -77,6 +77,6 @@ test("does not emit an incomplete line", () => {
   assert.deepEqual(framer.push(Buffer.from(" data")), []);
   assert.deepEqual(framer.push(Buffer.from("\n")), [{
     byteOffset: 0n,
-    rawEventBytes: Buffer.from("pending data"),
+    rawEventBytes: Buffer.from("pending data\n"),
   }]);
 });

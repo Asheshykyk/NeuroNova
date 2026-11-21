@@ -1,6 +1,7 @@
 export interface RawLineEvent {
   byteOffset: bigint;
   rawEventBytes: Buffer;
+  fileGeneration?: string;
 }
 
 export class RawLineFramer {
@@ -9,6 +10,15 @@ export class RawLineFramer {
 
   constructor(initialFileByteOffset: bigint = 0n) {
     this.nextByteOffset = initialFileByteOffset;
+  }
+
+  reset(initialFileByteOffset: bigint = 0n): void {
+    this.pending = Buffer.alloc(0);
+    this.nextByteOffset = initialFileByteOffset;
+  }
+
+  hasPendingBytes(): boolean {
+    return this.pending.length > 0;
   }
 
   push(chunk: Uint8Array | Buffer): RawLineEvent[] {
@@ -22,10 +32,10 @@ export class RawLineFramer {
         continue;
       }
 
-      const rawEventBytes = Buffer.from(combined.subarray(lineStart, index));
+      const rawEventBytes = Buffer.from(combined.subarray(lineStart, index + 1));
       const byteOffset = this.nextByteOffset;
       events.push({ byteOffset, rawEventBytes });
-      this.nextByteOffset += BigInt(rawEventBytes.length + 1);
+      this.nextByteOffset += BigInt(rawEventBytes.length);
       lineStart = index + 1;
     }
 

@@ -18,6 +18,8 @@ function isSignedEventRequest(value: unknown): value is SignedEventRequest {
     UUID_PATTERN.test(request.deliveryId) &&
     typeof request.streamId === "string" &&
     typeof request.fileIdentity === "string" &&
+    typeof request.fileGeneration === "string" &&
+    /^dev:\d+:ino:\d+$/.test(request.fileGeneration) &&
     typeof request.byteOffset === "string" &&
     /^\d+$/.test(request.byteOffset) &&
     typeof request.observedAt === "string" &&
@@ -33,7 +35,9 @@ function isSignedEventRequest(value: unknown): value is SignedEventRequest {
     const rawEvent = Buffer.from(request.rawEventBase64, "base64");
     return (
       rawEvent.toString("base64") === request.rawEventBase64 &&
-      rawEvent.length === request.rawEventLength
+      rawEvent.length === request.rawEventLength &&
+      rawEvent.length > 0 &&
+      rawEvent.at(-1) === 0x0a
     );
   }
   return false;
@@ -46,6 +50,7 @@ function canonicalRequest(request: SignedEventRequest): string {
     request.deliveryId,
     request.streamId,
     request.fileIdentity,
+    request.fileGeneration,
     request.byteOffset,
     request.observedAt,
     request.rawEventBase64,

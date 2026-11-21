@@ -1,11 +1,17 @@
 import { mkdir, open, readFile, rename, rm } from "node:fs/promises";
 import { dirname, join } from "node:path";
 
+export interface AgentCheckpointState {
+  fileGeneration: string;
+  nextByteOffset: bigint;
+}
+
 interface AgentCheckpoint {
   schemaVersion: 1;
   sourceId: string;
   streamId: string;
   fileIdentity: string;
+  fileGeneration: string;
   nextByteOffset: string;
 }
 
@@ -27,13 +33,13 @@ export class AgentCheckpointStore {
     this.fileIdentity = fileIdentity;
   }
 
-  async load(): Promise<bigint> {
+  async loadCheckpoint(): Promise<AgentCheckpointState | null> {
     let contents: Buffer;
     try {
       contents = await readFile(this.checkpointPath);
     } catch (error) {
       if ((error as NodeJS.ErrnoException).code === "ENOENT") {
-        return 0n;
+        return null;
       }
       throw error;
     }
@@ -57,6 +63,7 @@ export class AgentCheckpointStore {
       typeof value.sourceId !== "string" ||
       typeof value.streamId !== "string" ||
       typeof value.fileIdentity !== "string" ||
+      typeof value.fileGeneration !== "string" ||
       typeof value.nextByteOffset !== "string" ||
       !/^\d+$/.test(value.nextByteOffset)
     ) {
@@ -73,20 +80,49 @@ export class AgentCheckpointStore {
       );
     }
 
-    return BigInt(value.nextByteOffset);
+    return {
+      fileGeneration: value.fileGeneration,
+      nextByteOffset: BigInt(value.nextByteOffset),
+    };
   }
 
-  async save(nextByteOffset: bigint): Promise<void> {
+  async load(): Promise<bigint> {
+    const state = await this.loadCheckpoint();
+    return state?.nextByteOffset ?? 0n;
+  }
+
+  async save(
+    nextByteOffset: bigint,
+    fileGeneration?: string,
+  ): Promise<void> {
     if (typeof nextByteOffset !== "bigint" || nextByteOffset < 0n) {
       throw new Error("nextByteOffset must be a nonnegative bigint");
     }
+    if (
+      fileGeneration !== undefined &&
+      !/^dev:\d+:ino:\d+$/.test(fileGeneration)
+    ) {
+      throw new Error("fileGeneration must use dev:<device>:ino:<inode>");
+    }
 
     await mkdir(dirname(this.checkpointPath), { recursive: true });
-    const existing = await this.load();
-    if (nextByteOffset < existing) {
-      throw new Error(
-        `Refusing to move agent checkpoint backward from ${existing} to ${nextByteOffset}`,
-      );
+    const existing = await this.loadCheckpoint();
+
+    if (existing && fileGeneration !== undefined) {
+      if (
+        existing.fileGeneration === fileGeneration &&
+        nextByteOffset < existing.nextByteOffset
+      ) {
+        throw new Error(
+          `Refusing to move agent checkpoint backward from ${existing.nextByteOffset} to ${nextByteOffset}`,
+        );
+      }
+    } else if (existing && fileGeneration === undefined) {
+      if (nextByteOffset < existing.nextByteOffset) {
+        throw new Error(
+          `Refusing to move agent checkpoint backward from ${existing.nextByteOffset} to ${nextByteOffset}`,
+        );
+      }
     }
 
     const checkpoint: AgentCheckpoint = {
@@ -94,6 +130,7 @@ export class AgentCheckpointStore {
       sourceId: this.sourceId,
       streamId: this.streamId,
       fileIdentity: this.fileIdentity,
+      fileGeneration: fileGeneration ?? existing?.fileGeneration ?? "",
       nextByteOffset: nextByteOffset.toString(),
     };
 

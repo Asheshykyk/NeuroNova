@@ -9,7 +9,7 @@ import type { SignedEventRequest } from "../src/signed-event.ts";
 function request(
   deliveryId: string,
   byteOffset: bigint,
-  rawEventBase64 = "YQ==",
+  rawEventBase64 = "YQo=",
 ): SignedEventRequest {
   return {
     schemaVersion: 1,
@@ -17,6 +17,7 @@ function request(
     deliveryId,
     streamId: "auth.log",
     fileIdentity: "inode:42",
+    fileGeneration: "dev:2049:ino:42",
     byteOffset: byteOffset.toString(),
     observedAt: "1732145400000000000",
     rawEventBase64,
@@ -59,11 +60,11 @@ test("identical duplicate enqueue is an idempotent no-op", async () => {
 test("conflicting duplicate enqueue rejects without overwriting", async () => {
   await withSpool(async (_directory, spool) => {
     const deliveryId = "550e8400-e29b-41d4-a716-446655440002";
-    const first = request(deliveryId, 30n, "YQ==");
+    const first = request(deliveryId, 30n, "YQo=");
     await spool.enqueue(first);
 
     await assert.rejects(
-      spool.enqueue(request(deliveryId, 30n, "Yg==")),
+      spool.enqueue(request(deliveryId, 30n, "Ygo=")),
       /Delivery ID conflict/,
     );
     assert.deepEqual(await spool.listPending(), [first]);

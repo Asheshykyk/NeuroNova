@@ -23,12 +23,13 @@ async function main(): Promise<void> {
   );
   const keyPair = await keyStore.loadOrCreate();
   console.log(`Host Agent public key: ${keyPair.publicKeyHex}`);
+  const fileIdentity = "/var/log/auth.log";
 
   const checkpointStore = new AgentCheckpointStore(
     join(config.stateDir, "agent-checkpoint.json"),
     config.sourceId,
     config.streamId,
-    config.fileIdentity,
+    fileIdentity,
   );
   const heartbeatSequenceStore = new HeartbeatSequenceStore(
     join(config.stateDir, "heartbeat-sequence.json"),
@@ -42,7 +43,7 @@ async function main(): Promise<void> {
     logPath: config.authLogPath,
     sourceId: config.sourceId,
     streamId: config.streamId,
-    fileIdentity: config.fileIdentity,
+    fileIdentity,
     privateKey: keyPair.privateKey,
     checkpointStore,
     spool,
@@ -94,6 +95,7 @@ async function main(): Promise<void> {
   try {
     await runtime.run(abortController.signal);
   } finally {
+    await capturePipeline.close();
     process.removeListener("SIGINT", onSignal);
     process.removeListener("SIGTERM", onSignal);
   }
