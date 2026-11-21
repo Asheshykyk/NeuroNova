@@ -8,9 +8,11 @@ export type ReasonCode =
   | 'BUNDLE_READ_FAILED'
   | 'BUNDLE_JSON_INVALID'
   | 'BUNDLE_SCHEMA_UNAVAILABLE'
+  | 'AGENT_CHUNK_FORMAT_INVALID'
   | 'REQUIRED_EVIDENCE_MISSING'
   | 'BUNDLE_FORMAT_UNSUPPORTED'
   | 'TRUSTED_CONFIG_MISSING'
+  | 'TRUSTED_CONFIG_INVALID'
   | 'SIGNATURE_INVALID'
   | 'CHAIN_ID_MISMATCH'
   | 'PAYLOAD_HASH_MISMATCH'
@@ -46,6 +48,17 @@ export interface VerificationResult {
   bundlePath: string;
   rpcUrl: string;
   stages: StageResult[];
+  verifiedAt: string;
+}
+
+export interface AgentChunkVerificationResult {
+  scope: 'agent-chunk-signature-only';
+  status: VerificationStatus;
+  reasonCode?: ReasonCode;
+  message: string;
+  evidencePath: string;
+  sourceId?: string;
+  deliveryId?: string;
   verifiedAt: string;
 }
 

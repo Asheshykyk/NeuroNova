@@ -8,6 +8,21 @@ describe('argument parsing', () => {
     });
   });
 
+  it('parses AgentChunk-only evidence and trusted-key inputs', () => {
+    expect(parseArgs([
+      'verify-agent-chunk',
+      '--evidence', 'agent-chunk.json',
+      '--trusted-agent-keys', 'trusted-agent-keys.json',
+      '--json',
+    ])).toEqual({
+      command: 'verify-agent-chunk',
+      evidencePath: 'agent-chunk.json',
+      trustedAgentKeysPath: 'trusted-agent-keys.json',
+      json: true,
+      help: false,
+    });
+  });
+
   it('rejects unknown or incomplete arguments', () => {
     expect(() => parseArgs(['verify', '--bundle'])).toThrow(ArgumentError);
     expect(() => parseArgs(['verify', '--unknown'])).toThrow('Unknown option');

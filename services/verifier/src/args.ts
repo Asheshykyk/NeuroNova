@@ -1,6 +1,8 @@
 export interface CliArguments {
-  command?: 'verify';
+  command?: 'verify' | 'verify-agent-chunk';
   bundlePath?: string;
+  evidencePath?: string;
+  trustedAgentKeysPath?: string;
   rpcUrl?: string;
   json: boolean;
   help: boolean;
@@ -15,6 +17,9 @@ export function parseArgs(tokens: string[]): CliArguments {
   if (remaining[0] === 'verify') {
     remaining.shift();
     parsed.command = 'verify';
+  } else if (remaining[0] === 'verify-agent-chunk') {
+    remaining.shift();
+    parsed.command = 'verify-agent-chunk';
   }
 
   while (remaining.length > 0) {
@@ -23,10 +28,13 @@ export function parseArgs(tokens: string[]): CliArguments {
       parsed.help = true;
     } else if (token === '--json') {
       parsed.json = true;
-    } else if (token === '--bundle' || token === '--rpc-url') {
+    } else if (token === '--bundle' || token === '--rpc-url'
+      || token === '--evidence' || token === '--trusted-agent-keys') {
       const value = remaining.shift();
       if (!value || value.startsWith('--')) throw new ArgumentError(`${token} requires a value.`);
       if (token === '--bundle') parsed.bundlePath = value;
+      if (token === '--evidence') parsed.evidencePath = value;
+      if (token === '--trusted-agent-keys') parsed.trustedAgentKeysPath = value;
       if (token === '--rpc-url') {
         let url: URL;
         try {
@@ -50,9 +58,13 @@ export function parseArgs(tokens: string[]): CliArguments {
 export function usage(): string {
   return [
     'Usage: trusttrace verify --bundle <path> --rpc-url <url> [--json]',
+    '       trusttrace verify-agent-chunk --evidence <path> --trusted-agent-keys <path> [--json]',
     '',
     'Checks normalized evidence and requires a direct read-only RPC check before VERIFIED.',
     'JSON and ZIP file bundle adapters are unavailable pending an approved export schema.',
+    '',
+    'verify-agent-chunk checks only the AgentChunk Ed25519 signature; it does not verify Vault, Merkle, or chain state.',
+    'Trusted-key JSON maps canonical source IDs to raw Ed25519 public keys, e.g. {"0x<64 hex source ID>":"0x<64 hex key>"}',
     '',
     'Exit codes:',
     '  0  VERIFIED',
