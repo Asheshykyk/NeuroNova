@@ -1,5 +1,5 @@
 {
-  "description": "Host Agent Ed25519 chunk signing test vector for TRUSTTRACE (7-field cryptographic binding)",
+  "description": "Host Agent Ed25519 chunk signing test vector for TRUSTTRACE (8-field cryptographic binding covering fileIdentity and fileGeneration with terminating LF)",
   "domainTag": "0xAA",
   "seed": "0x0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
   "keyPair": {
@@ -10,14 +10,16 @@
     "sourceId": "host-agent-cyprus-01",
     "deliveryId": "550e8400-e29b-41d4-a716-446655440000",
     "streamId": "auth.log",
-    "fileIdentity": "inode:142857",
+    "fileIdentity": "/var/log/auth.log",
+    "fileGeneration": "dev:2049:ino:142857",
     "byteOffset": "1048576",
     "observedAt": "1732145400000000000",
-    "payload": "Nov 20 22:15:01 web-server-1 sshd[12345]: Accepted publickey for root from 192.168.1.50 port 54321 ssh2: RSA SHA256:abc123xyz"
+    "payload": "Nov 20 22:15:01 web-server-1 sshd[12345]: Accepted publickey for root from 192.168.1.50 port 54321 ssh2: RSA SHA256:abc123xyz\n",
+    "payloadBase64": "Tm92IDIwIDIyOjE1OjAxIHdlYi1zZXJ2ZXItMSBzc2hkWzEyMzQ1XTogQWNjZXB0ZWQgcHVibGlja2V5IGZvciByb290IGZyb20gMTkyLjE2OC4xLjUwIHBvcnQgNTQzMjEgc3NoMjogUlNBIFNIQTI1NjphYmMxMjN4eXoK"
   },
-  "preimageHex": "0xaa686f73742d6167656e742d6379707275732d3031000000000000000000000000002435353065383430302d653239622d343164342d613731362d3434363635353434303030300008617574682e6c6f67000c696e6f64653a31343238353700000000001000001809d1106253b0000000007d4e6f762032302032323a31353a3031207765622d7365727665722d3120737368645b31323334355d3a204163636570746564207075626c69636b657920666f7220726f6f742066726f6d203139322e3136382e312e353020706f727420353433323120737368323a20525341205348413235363a61626331323378797a",
-  "preimageLength": 240,
-  "signatureHex": "0x6c4820ccfc93fff96f4e3395fe97276185b397b64eee26083c42f6436740b0246c2e43cac0756fa5c1551c57aa3d908077df9a4b47688fc350a6b5ebddb96402",
+  "preimageHex": "0xaa686f73742d6167656e742d6379707275732d3031000000000000000000000000002435353065383430302d653239622d343164342d613731362d3434363635353434303030300008617574682e6c6f6700112f7661722f6c6f672f617574682e6c6f6700136465763a323034393a696e6f3a31343238353700000000001000001809d1106253b0000000007e4e6f762032302032323a31353a3031207765622d7365727665722d3120737368645b31323334355d3a204163636570746564207075626c69636b657920666f7220726f6f742066726f6d203139322e3136382e312e353020706f727420353433323120737368323a20525341205348413235363a61626331323378797a0a",
+  "preimageLength": 267,
+  "signatureHex": "0xe5069be221fe1463190c5998ccc2c2b376fa32f470ec252784d149e594d76baac9c3bfbed334d364324c98cad4d0d524189daff802496b2709dd140782490a0f",
   "verified": true,
   "tamperCases": [
     {
@@ -26,10 +28,11 @@
         "sourceId": "attacker-source-99",
         "deliveryId": "550e8400-e29b-41d4-a716-446655440000",
         "streamId": "auth.log",
-        "fileIdentity": "inode:142857",
+        "fileIdentity": "/var/log/auth.log",
+        "fileGeneration": "dev:2049:ino:142857",
         "byteOffset": 1048576,
         "observedAt": 1732145400000000000,
-        "payload": "Nov 20 22:15:01 web-server-1 sshd[12345]: Accepted publickey for root from 192.168.1.50 port 54321 ssh2: RSA SHA256:abc123xyz"
+        "payload": "Nov 20 22:15:01 web-server-1 sshd[12345]: Accepted publickey for root from 192.168.1.50 port 54321 ssh2: RSA SHA256:abc123xyz\n"
       },
       "verified": false
     },
@@ -39,10 +42,11 @@
         "sourceId": "host-agent-cyprus-01",
         "deliveryId": "00000000-0000-0000-0000-000000000000",
         "streamId": "auth.log",
-        "fileIdentity": "inode:142857",
+        "fileIdentity": "/var/log/auth.log",
+        "fileGeneration": "dev:2049:ino:142857",
         "byteOffset": 1048576,
         "observedAt": 1732145400000000000,
-        "payload": "Nov 20 22:15:01 web-server-1 sshd[12345]: Accepted publickey for root from 192.168.1.50 port 54321 ssh2: RSA SHA256:abc123xyz"
+        "payload": "Nov 20 22:15:01 web-server-1 sshd[12345]: Accepted publickey for root from 192.168.1.50 port 54321 ssh2: RSA SHA256:abc123xyz\n"
       },
       "verified": false
     },
@@ -52,10 +56,11 @@
         "sourceId": "host-agent-cyprus-01",
         "deliveryId": "550e8400-e29b-41d4-a716-446655440000",
         "streamId": "syslog",
-        "fileIdentity": "inode:142857",
+        "fileIdentity": "/var/log/auth.log",
+        "fileGeneration": "dev:2049:ino:142857",
         "byteOffset": 1048576,
         "observedAt": 1732145400000000000,
-        "payload": "Nov 20 22:15:01 web-server-1 sshd[12345]: Accepted publickey for root from 192.168.1.50 port 54321 ssh2: RSA SHA256:abc123xyz"
+        "payload": "Nov 20 22:15:01 web-server-1 sshd[12345]: Accepted publickey for root from 192.168.1.50 port 54321 ssh2: RSA SHA256:abc123xyz\n"
       },
       "verified": false
     },
@@ -65,10 +70,25 @@
         "sourceId": "host-agent-cyprus-01",
         "deliveryId": "550e8400-e29b-41d4-a716-446655440000",
         "streamId": "auth.log",
-        "fileIdentity": "inode:999999",
+        "fileIdentity": "/var/log/syslog",
+        "fileGeneration": "dev:2049:ino:142857",
         "byteOffset": 1048576,
         "observedAt": 1732145400000000000,
-        "payload": "Nov 20 22:15:01 web-server-1 sshd[12345]: Accepted publickey for root from 192.168.1.50 port 54321 ssh2: RSA SHA256:abc123xyz"
+        "payload": "Nov 20 22:15:01 web-server-1 sshd[12345]: Accepted publickey for root from 192.168.1.50 port 54321 ssh2: RSA SHA256:abc123xyz\n"
+      },
+      "verified": false
+    },
+    {
+      "field": "fileGeneration",
+      "tamperedChunk": {
+        "sourceId": "host-agent-cyprus-01",
+        "deliveryId": "550e8400-e29b-41d4-a716-446655440000",
+        "streamId": "auth.log",
+        "fileIdentity": "/var/log/auth.log",
+        "fileGeneration": "dev:2049:ino:999999",
+        "byteOffset": 1048576,
+        "observedAt": 1732145400000000000,
+        "payload": "Nov 20 22:15:01 web-server-1 sshd[12345]: Accepted publickey for root from 192.168.1.50 port 54321 ssh2: RSA SHA256:abc123xyz\n"
       },
       "verified": false
     },
@@ -78,10 +98,11 @@
         "sourceId": "host-agent-cyprus-01",
         "deliveryId": "550e8400-e29b-41d4-a716-446655440000",
         "streamId": "auth.log",
-        "fileIdentity": "inode:142857",
+        "fileIdentity": "/var/log/auth.log",
+        "fileGeneration": "dev:2049:ino:142857",
         "byteOffset": 2097152,
         "observedAt": 1732145400000000000,
-        "payload": "Nov 20 22:15:01 web-server-1 sshd[12345]: Accepted publickey for root from 192.168.1.50 port 54321 ssh2: RSA SHA256:abc123xyz"
+        "payload": "Nov 20 22:15:01 web-server-1 sshd[12345]: Accepted publickey for root from 192.168.1.50 port 54321 ssh2: RSA SHA256:abc123xyz\n"
       },
       "verified": false
     },
@@ -91,10 +112,11 @@
         "sourceId": "host-agent-cyprus-01",
         "deliveryId": "550e8400-e29b-41d4-a716-446655440000",
         "streamId": "auth.log",
-        "fileIdentity": "inode:142857",
+        "fileIdentity": "/var/log/auth.log",
+        "fileGeneration": "dev:2049:ino:142857",
         "byteOffset": 1048576,
         "observedAt": 1732145500000000000,
-        "payload": "Nov 20 22:15:01 web-server-1 sshd[12345]: Accepted publickey for root from 192.168.1.50 port 54321 ssh2: RSA SHA256:abc123xyz"
+        "payload": "Nov 20 22:15:01 web-server-1 sshd[12345]: Accepted publickey for root from 192.168.1.50 port 54321 ssh2: RSA SHA256:abc123xyz\n"
       },
       "verified": false
     },
@@ -104,10 +126,11 @@
         "sourceId": "host-agent-cyprus-01",
         "deliveryId": "550e8400-e29b-41d4-a716-446655440000",
         "streamId": "auth.log",
-        "fileIdentity": "inode:142857",
+        "fileIdentity": "/var/log/auth.log",
+        "fileGeneration": "dev:2049:ino:142857",
         "byteOffset": 1048576,
         "observedAt": 1732145400000000000,
-        "payload": "Nov 20 22:15:01 web-server-1 sshd[12345]: Accepted publickey for root - TAMPERED"
+        "payload": "Nov 20 22:15:01 web-server-1 sshd[12345]: Accepted publickey for attacker from 10.0.0.1\n"
       },
       "verified": false
     }

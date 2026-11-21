@@ -29,6 +29,8 @@ export interface AgentChunk {
   streamId?: string;
   /** File identity (e.g. "inode:142857" or "/var/log/auth.log") (default: "") */
   fileIdentity?: string;
+  /** File generation string in dev:<device>:ino:<inode> format (canonical alias for fileIdentity) */
+  fileGeneration?: string;
   /** Monotonic byte offset within the monitored log file (default: 0n) */
   byteOffset?: bigint | number;
   /** Nanoseconds or milliseconds epoch timestamp observed by host agent (default: 0n) */
@@ -169,7 +171,8 @@ export function generateAgentKeyPair(seed?: Buffer | Uint8Array): AgentKeyPair {
  *   || sourceId (32B)
  *   || deliveryIdLen (2B BE) || deliveryId (MB)
  *   || streamIdLen (2B BE) || streamId (KB)
- *   || fileIdentityLen (2B BE) || fileIdentity (LB)
+ *   || fileIdentityLen (2B BE) || fileIdentity (PB, e.g. "/var/log/auth.log")
+ *   || fileGenerationLen (2B BE) || fileGeneration (GB, e.g. "dev:2049:ino:142857")
  *   || byteOffset (8B BE uint64)
  *   || observedAt (8B BE uint64)
  *   || payloadLen (4B BE uint32) || payload (NB)
@@ -199,6 +202,13 @@ export function encodeAgentChunkPreimage(chunk: AgentChunk): Buffer {
   const fileIdentityLenBuf = Buffer.alloc(2);
   fileIdentityLenBuf.writeUInt16BE(fileIdentityBuf.length, 0);
 
+  const fileGenerationBuf = Buffer.from(chunk.fileGeneration ?? '', 'utf-8');
+  if (fileGenerationBuf.length > 65535) {
+    throw new RangeError(`fileGeneration exceeds maximum length of 65535 bytes: got ${fileGenerationBuf.length}`);
+  }
+  const fileGenerationLenBuf = Buffer.alloc(2);
+  fileGenerationLenBuf.writeUInt16BE(fileGenerationBuf.length, 0);
+
   const byteOffsetBuf = Buffer.alloc(8);
   byteOffsetBuf.writeBigUInt64BE(BigInt(chunk.byteOffset ?? 0n), 0);
 
@@ -218,6 +228,8 @@ export function encodeAgentChunkPreimage(chunk: AgentChunk): Buffer {
     streamIdBuf,
     fileIdentityLenBuf,
     fileIdentityBuf,
+    fileGenerationLenBuf,
+    fileGenerationBuf,
     byteOffsetBuf,
     observedAtBuf,
     payloadLenBuf,
