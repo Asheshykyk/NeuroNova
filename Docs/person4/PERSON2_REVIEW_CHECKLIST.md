@@ -72,9 +72,9 @@ Status: **APPROVED — AGREED CORRECTIONS**
 - [x] Source and event detail resource structure uses
   `GET /api/v1/sources/:sourceId/events/:vaultSequence`
 
-### 2. REST pagination, filtering, authentication, and errors
+### 2. REST pagination, HTTP errors, and authentication
 
-Status: **PENDING FINAL SCHEMA SIGN-OFF**
+Status: **PROPOSED CONVENTIONS — PENDING IMPLEMENTATION REVIEW**
 
 - [x] Pagination uses opaque `nextCursor`
 - [x] Request parameter is `cursor`
@@ -83,13 +83,23 @@ Status: **PENDING FINAL SCHEMA SIGN-OFF**
 - [x] `sequenceFrom`/`sequenceTo` require `sourceId`
 - [ ] Event/source/batch/checkpoint/gap filter names
 - [ ] Source scoping and ordering
-- [ ] Authentication requirements for read endpoints
-- [ ] Authorization boundaries, including raw evidence
-- [ ] HTTP status mapping
-- [ ] Machine-readable error code vocabulary
+- [ ] Review proposed error envelope fields: `code`, `message`,
+  `correlationId`, and `retryable`
+- [ ] Review recommended HTTP mapping: 400 malformed request/invalid query;
+  401 missing/invalid authentication; 403 insufficient permissions; 404
+  resource not found; 409 conflicting sequence/resource; 422 invalid field
+  combination; 429 rate limit; 500 internal error; 503 dependency unavailable
+- [ ] Approve final machine-readable `error.code` values and their mapping;
+  recommended HTTP statuses are not finalized code values
 - [ ] Validation error convention for missing sourceId, invalid cursor or limit, and out-of-range sequence filters
 - [ ] Empty-result and stale-refresh behavior
 - [ ] Final confirmation of `/health` versus no `/api/v1/health`
+- [ ] Confirm deployed dashboard read APIs require authenticated access and
+  source-level authorization
+- [ ] Decide dashboard identity provider and token format; neither is specified
+  by this proposal
+- [ ] Confirm Host Agent Ed25519 authentication remains separate from dashboard
+  authentication
 
 ### 3. Sequence and reconciliation
 
@@ -105,41 +115,68 @@ Status: **APPROVED — AGREED CORRECTIONS**
 
 ### 4. WebSocket envelope and recovery
 
-Status: **PENDING FINAL SCHEMA SIGN-OFF**
+Status: **PROPOSED FINAL CONVENTIONS — PENDING FINAL SIGN-OFF, IMPLEMENTATION, AND SECURITY REVIEW**
 
-- [ ] Exact WebSocket endpoint
-- [ ] Authentication method
-- [ ] Source subscription model
+- [ ] Proposed endpoint `/api/v1/ws`; require `wss` in deployment
+- [ ] Authenticated connection using a short-lived, single-use ticket
+- [ ] Never place credentials in the WebSocket URL
+- [ ] Explicit client subscriptions to source IDs
+- [ ] Enforce authorization for every subscribed source ID
 - [x] `messageId`, `occurredAt`, `type`, `sourceId`, `payload` envelope
-- [x] `event.persisted` is emitted only after durable Vault persistence succeeds
+- [x] `messageId` deduplicates notifications, not evidence records
+- [ ] Proposed clarification: `event.persisted` is emitted only after durable
+  JSONL persistence succeeds
 - [ ] Approval of remaining event type names and payload structures
 - [ ] Payload structures for each type
-- [x] `messageId` deduplication behavior
+- [ ] Native WebSocket ping/pong; proposed server ping interval is 30 seconds
 - [x] No replay/resumption promise
-- [ ] REST refetch/reconciliation after reconnect
-- [ ] Ping/pong and connection liveness behavior
+- [x] REST refetch/reconciliation after reconnect
 - [ ] Out-of-order and duplicate delivery behavior
+- [ ] Implementation/security review of ticket issuance route, ticket TTL,
+  ticket consumption semantics, and subscription message schema
+- [ ] Confirm authenticated deployment access and source-level authorization
+- [ ] Confirm bounded reconnect and REST reconciliation details when the
+  approved read APIs are available
 
 ### 5. Status semantics
 
-Status: **PROPOSED — PENDING JOINT SIGN-OFF**
+Status: **PROPOSED FINAL CONVENTIONS — PENDING IMPLEMENTATION AND SECURITY REVIEW**
 
-- [ ] Proposed `VAULT_PERSISTED`, `PENDING`, and missing-persistence dimension
-- [ ] Proposed local Hardhat anchoring dimension
-- [ ] Proposed public Quai anchoring dimension
-- [ ] Proposed `ANCHORED_SERVER_REPORTED`
-- [ ] Proposed `RPC_VERIFIED`
-- [ ] Proposed `UNVERIFIABLE`
-- [ ] Proposed `COLLECTION_GAP`
-- [ ] Confirm status dimensions are non-linear
-- [ ] Confirm proposed transition table
-- [ ] Confirmation that RPC_VERIFIED requires direct-RPC evidence
-- [ ] Confirmation that UNVERIFIABLE is not tampering
-- [ ] Confirmation that public/server anchoring is not full event-level VERIFIED
+- [ ] Vault persistence: `PENDING`, `VAULT_PERSISTED`, `PERSISTENCE_FAILED`
+- [ ] Local Hardhat anchoring: `PENDING`, `ANCHORED_SERVER_REPORTED`,
+  `ANCHOR_FAILED`
+- [ ] Public Quai anchoring: `PENDING`, `ANCHORED_SERVER_REPORTED`,
+  `ANCHOR_FAILED`
+- [ ] Independent verification: `PENDING`, `RPC_VERIFIED`, `UNVERIFIABLE`,
+  `CHAIN_MISMATCH`
+- [ ] Keep `COLLECTION_GAP` separate from persistence, anchoring, and verification
+- [ ] Confirm dimensions are separate, not one linear state machine
+- [ ] Confirm proposed transition rules remain pending implementation review
+- [ ] Confirm `RPC_VERIFIED` requires independent direct-RPC verification
+- [ ] Confirm `UNVERIFIABLE` does not mean `TAMPERED`
+- [ ] Assign `CHAIN_MISMATCH` only when trusted direct-RPC evidence establishes
+  a mismatch, never merely because RPC is unavailable
+- [ ] Keep public-chain commitment verification distinct from event-level
+  cryptographic verification
+- [ ] Preserve verifier CLI outcomes `VERIFIED`, `TAMPERED`, and
+  `UNVERIFIABLE`; do not remap them to API status dimensions
 
-### 6. Evidence export
+### 6. Security review
 
-Status:
+Status: **PENDING**
+
+- [ ] Review dashboard REST authentication and source-level authorization
+- [ ] Review WebSocket authentication, single-use connection ticket handling,
+  and per-source subscription authorization
+- [ ] Confirm credentials are excluded from WebSocket URLs
+- [ ] Review ticket issuance/TTL/consumption design and subscription schema
+- [ ] Confirm error messages and correlation identifiers do not expose secrets
+- [ ] Confirm API status values cannot be misrepresented as independent
+  verification or event-level integrity results
+
+### 7. Evidence export
+
+Status: **NOT IMPLEMENTED — PENDING SEPARATE APPROVAL**
 
 - [ ] ZIP export member layout
 - [ ] Manifest field and version conventions
@@ -153,9 +190,14 @@ Status:
 ## Final Person 2 sign-off
 
 - [ ] REST read contracts approved
-- [ ] WebSocket contract approved
+- [ ] HTTP error envelope, recommended status mapping, and final error codes
+  approved
+- [ ] Deployment dashboard authentication and source-level authorization
+  approved
+- [ ] WebSocket endpoint, connection-ticket approach, source subscription
+  authorization, liveness, and reconnect behavior approved
 - [ ] Sequence and duplicate behavior approved
-- [ ] Status vocabulary approved
+- [ ] Separate status dimensions, transitions, and security review approved
 - [ ] Evidence export remains pending or is approved separately
 - [ ] Person 4 may begin live mapping only after this sign-off
 

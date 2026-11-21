@@ -6,8 +6,8 @@
 
 - **IMPLEMENTED:** only the confirmed backend operations listed below.
 - **ARCHITECTURALLY APPROVED:** Person 2-reviewed architecture corrections included in this document.
-- **PROPOSED:** resource structure or illustrative fields that still require final schema conventions.
-- **PENDING FINAL SIGN-OFF:** finalized paths, fields, pagination, authentication, errors, WebSocket payloads, export layout, and implementation status.
+- **PROPOSED:** conventions, resource structures, or illustrative fields that still require implementation and security review.
+- **PENDING FINAL SIGN-OFF:** REST/WebSocket conventions, schemas, authentication and authorization details, error codes, export layout, and implementation status.
 
 This document consumes interfaces owned by Person 2. Person 2 owns API schemas
 and Person 1 owns cryptographic representations.
@@ -50,39 +50,44 @@ remain proposed or pending implementation.
 
 ## Evidence and anchoring status boundaries
 
-**PROPOSED STATUS VOCABULARY — PENDING FINAL SIGN-OFF**
+**PROPOSED STATUS DIMENSIONS — PENDING IMPLEMENTATION AND SECURITY REVIEW**
 
 The dashboard must keep these findings separate:
 
 | Boundary | Proposed meaning | What it does not prove |
 | --- | --- | --- |
-| Vault persistence | The vault read API reports that preserved bytes have durably reached the approved persistence point. | It does not prove host correctness or chain anchoring. |
+| Vault persistence | The vault reports whether JSONL persistence is pending, complete, or failed. | `VAULT_PERSISTED` does not prove host correctness or chain anchoring. |
 | Batch creation | The vault reports a Merkle batch and sequence range. | It does not prove that an on-chain anchor exists. |
-| Local Hardhat anchoring | An API reports a local-chain transaction or block reference. | It is not public proof and is not independent verification. |
-| Public Quai anchoring | An API reports a public checkpoint transaction or block reference for Quai Orchard Cyprus-1, chain ID 15000. | A transaction reference is only `ANCHORED_SERVER_REPORTED`; it is not direct-RPC verification. |
-| Independent verification | An approved verifier, imported CLI result, or direct-RPC result confirms the expected commitment. | It does not change a missing host-comparison result into proof of source behavior. |
+| Local Hardhat anchoring | A server reports local-chain anchoring state. | It is not public proof and is not independent verification. |
+| Public Quai anchoring | A server reports public checkpoint state for Quai Orchard Cyprus-1, chain ID 15000. | A server-reported anchor is not direct-RPC verification. |
+| Independent verification | A verifier directly checks the relevant public commitment. | It does not establish event-level integrity or source behavior by itself. |
+| Collection | A separately reported collection interval state. | `COLLECTION_GAP` does not establish whether an event occurred. |
 
-Recommended dashboard labels:
+Proposed API status dimensions:
 
-| Label | Applicable boundary |
+| Dimension | Proposed values |
 | --- | --- |
-| `PENDING` | Receipt, persistence acknowledgement, batching, or verification work is incomplete. |
-| `VAULT_PERSISTED` | Proposed API-confirmed durable vault evidence. |
-| Local Hardhat anchor | The API or operational system reports an anchor in the local Hardhat network. It is separate from public anchoring. |
-| `ANCHORED_SERVER_REPORTED` | A server reports an anchor or transaction reference. It is not independent verification. |
-| Public Quai anchor | The API reports an anchor in Quai Orchard Cyprus-1, chain ID 15000. It remains server-reported until direct-RPC verification succeeds. |
-| `RPC_VERIFIED` | Direct-RPC verification independently confirms the commitment. |
-| `UNVERIFIABLE` | Required evidence or RPC access was unavailable. This is not a tamper finding. |
-| `CHAIN_MISMATCH` | Independent verification found a commitment mismatch. |
-| `COLLECTION_GAP` | A collection window was missed. It does not establish event occurrence. |
+| Vault persistence | `PENDING`, `VAULT_PERSISTED`, `PERSISTENCE_FAILED` |
+| Local Hardhat anchoring | `PENDING`, `ANCHORED_SERVER_REPORTED`, `ANCHOR_FAILED` |
+| Public Quai anchoring | `PENDING`, `ANCHORED_SERVER_REPORTED`, `ANCHOR_FAILED` |
+| Independent public-chain verification | `PENDING`, `RPC_VERIFIED`, `UNVERIFIABLE`, `CHAIN_MISMATCH` |
+| Collection | `COLLECTION_GAP` remains a separate collection status. |
 
-`VAULT_PERSISTED` does not imply local or public anchoring. Local Hardhat
-anchoring does not imply public Quai anchoring. `ANCHORED_SERVER_REPORTED`
-does not become `RPC_VERIFIED` from an API response or transaction hash.
-`RPC_VERIFIED` requires actual independent direct-RPC verification of the
-relevant public commitment. It must not be equated with full event-level
-`VERIFIED` unless all required evidence, cryptographic checks, and chain checks
-have passed.
+These are separate dimensions, not one linear state machine. `VAULT_PERSISTED`
+does not imply local or public anchoring. Local Hardhat anchoring does not imply
+public Quai anchoring. `ANCHORED_SERVER_REPORTED` is not `RPC_VERIFIED`.
+`RPC_VERIFIED` requires independent direct-RPC verification of the relevant
+public commitment. `UNVERIFIABLE` does not mean `TAMPERED`. `CHAIN_MISMATCH`
+may be assigned only when a mismatch against trusted chain evidence is
+established, not when RPC access is unavailable.
+
+Public-chain commitment verification is distinct from event-level
+cryptographic verification. Do not map the proposed API status dimensions onto
+the verifier CLI outcomes: the CLI retains its established `VERIFIED`,
+`TAMPERED`, and `UNVERIFIABLE` outcomes under its own evidence and proof
+requirements. `RPC_VERIFIED` alone does not establish event-level `VERIFIED`.
+All proposed values and transition rules below require implementation and
+security review.
 
 ## Read models
 
@@ -144,12 +149,16 @@ The final commitment also needs the contract address, chain identifier, block re
 ```json
 {
   "subject": { "kind": "event", "vaultSequence": 12, "batchId": "source-01-batch-000001" },
-  "status": "CONTENT_MISMATCH",
+  "eventVerification": {
+    "origin": "verifier-cli",
+    "outcome": "UNVERIFIABLE"
+  },
+  "publicChainVerificationStatus": "RPC_VERIFIED",
   "checks": {
     "hostComparison": "MISSING_RECORDS",
     "vaultEvidence": "AVAILABLE",
     "proof": "VERIFIED",
-    "chainCommitment": "VERIFIED"
+    "chainCommitment": "RPC_VERIFIED"
   },
   "chainCommitmentFound": true,
   "expectedMerkleRoot": "0x...",
@@ -160,7 +169,12 @@ The final commitment also needs the contract address, chain identifier, block re
 }
 ```
 
-The final status enum must be shared by the vault, dashboard, attack scripts, and CLI.
+The event verification outcome is a verifier CLI result. It is not derived from
+or replaced by `publicChainVerificationStatus`.
+
+Final API status dimensions and verifier CLI outcomes must be defined in their
+respective contracts. Any interoperability mapping requires explicit approval
+and must not collapse the separate dimensions.
 
 ## Illustrative HTTP operations
 
@@ -305,8 +319,9 @@ rsyslog observations for that source.
 
 If `sequenceFrom` or `sequenceTo` is supplied, `sourceId` must also be supplied.
 Requests that provide either sequence bound without `sourceId` are invalid input.
-The HTTP status and machine-readable error code for this validation remain
-pending Person 2 approval and are not defined as final here.
+The recommended mapping lists `422` for invalid field combinations, but the
+status for this specific validation and its machine-readable error code remain
+pending implementation review.
 
 ### Proposed `GET /api/v1/batches`
 
@@ -424,7 +439,7 @@ not establish whether a source event occurred or did not occur in that window.
 | Successful query with no records | `EMPTY` | query scope and absence of returned records |
 | Timeout, unavailable service, or non-success response | `ERROR` | safe message, response code when supplied, retry action |
 | Refresh or live transport unavailable after prior data | `STALE` | last successful observation time and reconnect or retry state |
-| Evidence member unavailable | `ERROR` for that member | explicit `MISSING_FROM_VAULT` or `UNVERIFIABLE` result when verification reports it |
+| Evidence member unavailable | `ERROR` for that member | explicit unavailable or `UNVERIFIABLE` result when verification reports it |
 
 ## Proposed success and error conventions
 
@@ -442,58 +457,75 @@ retrieval is a separate authorization-controlled capability. Its endpoint,
 permissions, and response or access schema are not finalized; no raw-evidence
 route is claimed here.
 
-HTTP status mapping, machine-readable error vocabulary, read authentication,
-and authorization boundaries are pending Person 2 final approval.
-
-The following error response is illustrative only, not an approved schema:
+The following error envelope is PROPOSED and requires implementation review:
 
 ```json
 {
   "error": {
-    "code": "RESOURCE_NOT_FOUND",
-    "message": "The requested resource is unavailable.",
-    "correlationId": "optional-safe-request-id",
+    "code": "ERROR_CODE",
+    "message": "Human-readable description",
+    "correlationId": "request-correlation-id",
     "retryable": false
   }
 }
 ```
 
-These fields are proposed, not implementation fields. The minimum Person 2
-contract should include a machine-readable code, a safe message that omits
-secrets, and an optional correlation/request identifier. HTTP status and
-safe error-code ownership remain pending approval.
+The envelope is not implemented. The field shape is proposed; finalized
+`error.code` values and their mapping require implementation review.
 
-Examples of proposed status mapping, not approved enum values:
+Recommended HTTP status mapping, pending implementation review:
 
-| HTTP status | Proposed dashboard state | Meaning |
-| --- | --- | --- |
-| 200 with items | `READY` | Successful resource page. |
-| 200 with no items | `EMPTY` | No records in the requested scope. |
-| 400 | `ERROR` | Invalid or unsupported query. |
-| 404 | `ERROR` | Resource is not present. |
-| 401/403 | `ERROR` | Authentication or authorization unavailable. |
-| 408 or 504 | `ERROR` | Request timeout or gateway timeout. |
-| 5xx or network failure | `ERROR` or `STALE` | Initial failure is `ERROR`; refresh failure after history is `STALE`. |
+| HTTP status | Recommended meaning |
+| --- | --- |
+| `400` | Malformed request or invalid query. |
+| `401` | Missing or invalid authentication. |
+| `403` | Insufficient permissions. |
+| `404` | Resource not found. |
+| `409` | Conflicting sequence or resource. |
+| `422` | Invalid field combination. |
+| `429` | Rate limit. |
+| `500` | Internal error. |
+| `503` | Dependency unavailable. |
+
+These are recommended transport status mappings, not finalized error-code
+values. They do not define validation precedence or endpoint-specific response
+behavior.
+
+### Proposed authentication and authorization boundaries
+
+**PROPOSED — PENDING IMPLEMENTATION AND SECURITY REVIEW**
+
+- Host Agent Ed25519 authentication is separate from dashboard authentication.
+- Dashboard read APIs require authenticated access in deployment.
+- WebSocket connections require authenticated access in deployment.
+- Source-level authorization must be enforced for both REST reads and WebSocket
+  subscriptions.
+- No dashboard identity provider, token format, or ticket issuance route is
+  finalized here.
+- Raw-evidence retrieval remains a separate authorization-controlled
+  capability; its route and authorization policy are not finalized.
 
 ## WebSocket event envelope
 
-**PROPOSED — REQUIRES PERSON 2 APPROVAL — NOT IMPLEMENTED**
-A single topic-based WebSocket is sufficient for discussion, but its endpoint,
-authentication, subscription model, replay behavior, delivery guarantee, and
-message schema are not implemented.
+**PROPOSED FINAL CONVENTIONS — NOT IMPLEMENTED — PENDING IMPLEMENTATION AND SECURITY REVIEW**
 
-The following choices remain unresolved and require final Person 2 approval:
+- Proposed endpoint: `/api/v1/ws`; deployments must use `wss`.
+- WebSocket connections require authenticated access in deployment. Use a
+  short-lived, single-use connection ticket; never put credentials in the
+  WebSocket URL.
+- Clients explicitly subscribe to source IDs. The server must authorize every
+  subscribed source ID.
+- `messageId` deduplicates notifications only, not evidence records.
+- Use native WebSocket ping/pong; proposed server ping interval is 30 seconds.
+- No replay or resumption is guaranteed for the first integration.
+- Reconnect triggers REST refetch/reconciliation after the connection is
+  re-established, once approved read APIs exist.
+- Emit `event.persisted` only after durable JSONL persistence succeeds.
 
-- exact WebSocket URL;
-- authentication method;
-- source subscription model;
-- ping/pong or heartbeat/liveness behavior;
-- reconnect timing and whether REST reconciliation is triggered after every
-  successful reconnect;
-- how missed or duplicate frames are reconciled with the approved REST read APIs.
-
-No suggested endpoint, authentication method, subscription shape, or reconnect
-behavior below is approved. All are PROPOSED, NOT IMPLEMENTED.
+The ticket issuance endpoint, ticket TTL, consumption semantics, and
+subscription message schema remain subject to implementation and security
+review and are not specified here. The WebSocket server and all message
+schemas remain NOT IMPLEMENTED.
 
 ```json
 {
@@ -523,7 +555,7 @@ The envelope fields shown above are proposed:
 | --- | --- |
 | `messageId` | Unique server-assigned ID for duplicate suppression. |
 | `occurredAt` | UTC RFC 3339 timestamp for the server event. |
-| `type` | One of the approved Person 2 event types. |
+| `type` | One of the proposed Person 2 event types, pending final sign-off. |
 | `sourceId` | Required when a source applies; may be omitted for source-independent scenario or service events. |
 | `payload` | Type-specific object; fields and identifiers are unapproved until Person 2 signs off. |
 
@@ -537,7 +569,7 @@ Architecturally approved/Person 2-proposed event type names:
 `collector.gap`,
 and `scenario.updated`. Exact payload structures and type-name approval remain pending.
 
-`event.persisted` is emitted only after successful durable Vault persistence.
+`event.persisted` is emitted only after successful durable JSONL persistence.
 It must not be emitted merely on ingest or socket reception.
 
 ### Reconnect behavior
@@ -591,34 +623,51 @@ authority.
 
 ## Proposed status dimensions and transitions
 
-**PROPOSED — PERSON 2 AND FINAL JOINT SIGN-OFF PENDING**
+**PROPOSED FINAL CONVENTIONS — PENDING IMPLEMENTATION AND SECURITY REVIEW**
 
-The following values describe separate dimensions rather than one guaranteed
-linear state machine:
+These are separate dimensions, not one linear state machine:
 
-| Dimension | Proposed values or representation | Meaning |
+| Dimension | Proposed values | Meaning |
 | --- | --- | --- |
-| Vault evidence | `PENDING`, `VAULT_PERSISTED`, `MISSING_FROM_VAULT` | Vault receipt/persistence state. |
-| Local Hardhat anchor | `NOT_ANCHORED`, `ANCHORED_SERVER_REPORTED` | API-reported local chain state only. |
-| Public Quai anchor | `NOT_ANCHORED`, `ANCHORED_SERVER_REPORTED`, `RPC_VERIFIED`, `UNVERIFIABLE` | Public commitment state, with `RPC_VERIFIED` only after independent direct-RPC verification. |
-| Collection | `PENDING`, `CORRELATED`, `COLLECTION_GAP` | Collection or reconciliation state. A gap is not evidence of an event. |
-| Integrity | `PENDING`, `VERIFIED`, `CONTENT_MISMATCH`, `INVALID_PROOF`, `UNVERIFIABLE` | Independent or server-reported result as separately labeled. |
+| Vault persistence | `PENDING`, `VAULT_PERSISTED`, `PERSISTENCE_FAILED` | Whether durable JSONL persistence completed. |
+| Local Hardhat anchoring | `PENDING`, `ANCHORED_SERVER_REPORTED`, `ANCHOR_FAILED` | Local-chain anchoring state reported by the service. |
+| Public Quai anchoring | `PENDING`, `ANCHORED_SERVER_REPORTED`, `ANCHOR_FAILED` | Public-chain anchoring state reported by the service. |
+| Independent verification | `PENDING`, `RPC_VERIFIED`, `UNVERIFIABLE`, `CHAIN_MISMATCH` | Result of an independent direct-RPC commitment check. |
+| Collection | `COLLECTION_GAP` | Separate collection condition; it does not establish event occurrence. |
 
-Illustrative transition table for review, not an approved enum or backend state machine:
+Proposed interpretation rules:
 
-| From | Event/condition | Proposed result dimensions |
-| --- | --- | --- |
-| Event not received | Approved Vault read reports no record | `VAULT_PERSISTED=false`; no integrity verdict |
-| Event received, bytes not persisted point met | Vault receipt pending acknowledgement | `PENDING`, no public anchor claim |
-| Durable Vault persistence succeeds | Vault records preserved bytes | `VAULT_PERSISTED` only |
-| Batch created, anchor absent | Batch metadata exists | `VAULT_PERSISTED`; public/local anchor `NOT_ANCHORED` or `PENDING` |
-| API reports local or public anchor | Server provides transaction/reference | `ANCHORED_SERVER_REPORTED`, never `RPC_VERIFIED` |
-| Direct-RPC commitment matches | Independent chain evidence succeeds | `RPC_VERIFIED` for the commitment; full event `VERIFIED` only if required evidence/proof/signature checks also pass |
-| RPC unavailable or evidence missing | Required chain/material check cannot complete | `UNVERIFIABLE`, not `TAMPERED` or `COLLECTION_GAP` |
-| Collection window missed | Heartbeat/window evidence expires | `COLLECTION_GAP`; no conclusion about event occurrence |
-| Cryptographic mismatch established | Preserved bytes, proof or signed commitment conflict | `TAMPERED` or integrity mismatch in the appropriate person-specific result vocabulary |
+- `ANCHORED_SERVER_REPORTED` is not `RPC_VERIFIED`.
+- `RPC_VERIFIED` requires independent direct-RPC verification of the relevant
+  public commitment.
+- RPC unavailability or missing required material yields `UNVERIFIABLE`, not
+  `CHAIN_MISMATCH` or `TAMPERED`.
+- `CHAIN_MISMATCH` is allowed only when a mismatch against trusted chain
+  evidence is established.
+- Public-chain commitment verification is distinct from event-level
+  cryptographic verification. Do not equate `RPC_VERIFIED` with event-level
+  `VERIFIED`.
+- The verifier CLI retains its established `VERIFIED`, `TAMPERED`, and
+  `UNVERIFIABLE` outcomes under its own evidence and proof requirements; API
+  status dimensions do not replace or silently remap those outcomes.
 
-These enum names and transitions are PROPOSED and require explicit joint approval.
+Illustrative transition table for review; transitions are PROPOSED and are not
+an approved backend state machine:
+
+| Dimension | Prior state | Condition | Proposed next state |
+| --- | --- | --- | --- |
+| Vault persistence | `PENDING` | Durable JSONL persistence succeeds | `VAULT_PERSISTED` |
+| Vault persistence | `PENDING` | Durable JSONL persistence fails | `PERSISTENCE_FAILED` |
+| Local Hardhat anchoring | `PENDING` | Service reports an anchor | `ANCHORED_SERVER_REPORTED` |
+| Local Hardhat anchoring | `PENDING` | Service reports anchoring failure | `ANCHOR_FAILED` |
+| Public Quai anchoring | `PENDING` | Service reports an anchor | `ANCHORED_SERVER_REPORTED` |
+| Public Quai anchoring | `PENDING` | Service reports anchoring failure | `ANCHOR_FAILED` |
+| Independent verification | `PENDING` | Direct RPC confirms the expected public commitment | `RPC_VERIFIED` |
+| Independent verification | `PENDING` | RPC or required evidence is unavailable | `UNVERIFIABLE` |
+| Independent verification | `PENDING` | Trusted direct-RPC evidence establishes a mismatch | `CHAIN_MISMATCH` |
+| Collection | Any | A collection interval qualifies as a gap | `COLLECTION_GAP`, independently of the other dimensions |
+
+ZIP export schema and fixture approval remain separate and pending.
 
 ## Evidence export response
 

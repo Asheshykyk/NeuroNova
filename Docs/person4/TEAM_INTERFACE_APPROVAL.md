@@ -55,6 +55,32 @@ to final schema and implementation sign-off:
 - [x] Reconnect will trigger REST refetch/reconciliation after approved read APIs exist.
 - [x] ZIP export is pending; no manifest or bundle layout is approved.
 
+### Person 2 proposed final REST/WebSocket conventions
+
+**PROPOSED — PENDING FINAL REST/WEBSOCKET SIGN-OFF, IMPLEMENTATION, AND SECURITY REVIEW**
+
+The following are proposed final conventions, not fully approved schemas or
+implemented behavior:
+
+- [ ] Proposed WebSocket endpoint `/api/v1/ws`; deployments require `wss`.
+- [ ] Authenticated WebSocket access using a short-lived, single-use connection
+  ticket; credentials must not appear in the WebSocket URL.
+- [ ] Clients explicitly subscribe to source IDs; authorization is enforced for
+  every subscribed source.
+- [ ] Native WebSocket ping/pong, with a proposed server ping interval of 30 seconds.
+- [ ] No replay/resumption guarantee in the first integration; REST refetch after
+  reconnect.
+- [ ] `event.persisted` is emitted only after durable JSONL persistence.
+- [ ] Proposed error envelope and recommended HTTP status mapping, with final
+  machine-readable error codes pending implementation review.
+- [ ] Dashboard REST and WebSocket access is authenticated in deployment, with
+  source-level authorization; Host Agent Ed25519 authentication remains separate.
+- [ ] Proposed separate persistence, local-anchor, public-anchor, independent
+  verification, and collection status dimensions and transitions.
+- [ ] Ticket issuance route, TTL, consumption semantics, subscription message
+  schema, dashboard identity provider, token format, error codes, and final
+  transition rules remain pending implementation/security review.
+
 ### Confirmed Person 4 boundaries
 
 - [x] The dashboard remains in DEMO mode until approved live read APIs are available.
@@ -72,10 +98,12 @@ to final schema and implementation sign-off:
 - [ ] Evidence detail and verification read contracts.
 - [ ] Raw-evidence endpoint, permissions, and response schema.
 - [ ] Final filtering and cursor/filter validation conventions.
-- [ ] HTTP status mapping and machine-readable error vocabulary.
-- [ ] Authentication requirements and authorization boundaries for read endpoints.
+- [ ] Implementation review of recommended HTTP status mapping and final
+  machine-readable error code values.
+- [ ] Dashboard authentication mechanism and source-level authorization rules.
 - [ ] Final read-model field names and status enum values.
-- [ ] WebSocket endpoint, authentication, subscription, liveness and reconnect/reconciliation details.
+- [ ] Final WebSocket endpoint, connection-ticket design, subscription schema,
+  liveness, reconnect/reconciliation details, and security review.
 
 ## Cross-team repository decisions
 
@@ -111,14 +139,19 @@ to final schema and implementation sign-off:
 - [ ] Confirm the final dashboard read routes, request parameters, source scoping, and error response shape.
 - [ ] Confirm the event, batch, verification-result, health, and evidence-detail response fields.
 - [ ] Confirm vault-assigned sequence ownership, durable-receipt acknowledgement point, reconciliation state vocabulary, and retention of raw bytes.
-- [ ] Confirm WebSocket endpoint, authentication, subscription scope, event envelope, replay or resumption semantics, duplicate handling, ordering, and liveness behaviour.
+- [ ] Review the proposed `/api/v1/ws` endpoint, authenticated single-use
+  connection ticket, source subscriptions and authorization, event envelope,
+  no-replay behavior, duplicate handling, ordering, and 30-second native ping.
 - [ ] Confirm no guaranteed replay/resumption and the final reconnect/REST reconciliation behavior.
-- [ ] Confirm HTTP status mapping and error code vocabulary.
-- [ ] Confirm authentication for read endpoints and authorization boundaries, including raw evidence.
-- [ ] Confirm proposed status dimensions and transitions or replace them with approved enums.
+- [ ] Review the proposed HTTP status mapping and error envelope; approve final
+  machine-readable error codes and field semantics.
+- [ ] Review deployment authentication and source-level authorization for REST
+  and WebSocket; decide identity provider, token format, and ticket issuance.
+- [ ] Review proposed status dimensions/transitions, including trusted
+  `CHAIN_MISMATCH` conditions and separation from verifier CLI outcomes.
 - [ ] Confirm the exact source-scoped read route and response schema.
-- [ ] Confirm whether reconnect-triggered REST refetch is sufficient and whether
-  the server promises any replay.
+- [ ] Confirm remaining reconnect/REST reconciliation details without adding a
+  replay/resumption guarantee.
 - [ ] Confirm source-local sequencing and stable
   `sourceId`, then `vaultSequence` ordering.
 - [ ] Confirm `messageId` WebSocket deduplication and `event.persisted` semantics.
