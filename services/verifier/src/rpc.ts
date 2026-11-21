@@ -1,5 +1,6 @@
 import { EvidenceAnchorABI, validateSequenceContinuity } from '@trusttrace/core';
-import { Contract, FetchRequest, JsonRpcProvider } from 'quais';
+import deployments from '@trusttrace/core/deployments' with { type: 'json' };
+import { Contract, FetchRequest, Interface, JsonRpcProvider } from 'quais';
 import type { BatchCommitment } from '@trusttrace/core/types';
 import { commitmentHash, isCommitment, result } from './core.js';
 import type { BatchEvidence, TrustedBatchConfig } from './core.js';
@@ -9,13 +10,55 @@ type ReadMethod = 'isBatchAnchored' | 'getBatch' | 'getLatest' | 'getSource';
 const maxUint64 = (1n << 64n) - 1n;
 export const RPC_REQUEST_TIMEOUT_MS = 15_000;
 
+const orchard = deployments.quai_orchard_cyprus1;
 export const QUAI_ORCHARD_REGISTRY = {
   network: 'Quai Orchard Cyprus-1',
-  chainId: 15000n,
-  rpcUrl: 'https://orchard.rpc.quai.network/cyprus1',
-  contractAddress: '0x00a89d7494cb3d16858a74e5cae1a965d14df5a2',
-  expectedVaultSigner: '0x00ec2241529f64253d1239Ce336a15f1f454e839',
+  chainId: BigInt(orchard.chainId),
+  rpcUrl: orchard.rpcUrl,
+  contractAddress: orchard.contractAddress.toLowerCase(),
+  expectedVaultSigner: orchard.vaultSignerAddress,
 } as const;
+
+const local = deployments.local_hardhat;
+export const LOCAL_VAULT_TRUST: TrustedBatchConfig = {
+  signer: local.vaultSignerAddress,
+  domain: {
+    name: 'EvidenceAnchor', version: '1', chainId: BigInt(local.chainId), verifyingContract: local.contractAddress,
+  },
+};
+
+export const createLocalEvidenceAnchor: ConnectEvidenceAnchor = (rpcUrl, address, abi) => {
+  const contract = new Interface(abi as ConstructorParameters<typeof Interface>[0]);
+  async function call(method: string, params: unknown[]) {
+    const response = await fetch(rpcUrl, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ jsonrpc: '2.0', id: 1, method, params }),
+      signal: AbortSignal.timeout(RPC_REQUEST_TIMEOUT_MS),
+      redirect: 'error',
+    });
+    if (!response.ok) throw new Error('RPC request failed');
+    const message = await response.json();
+    if (message?.jsonrpc !== '2.0' || message.id !== 1 || message.error || typeof message.result !== 'string') {
+      throw new Error('Invalid RPC response');
+    }
+    return message.result;
+  }
+
+  return {
+    getNetwork: async () => {
+      const chainId = await call('eth_chainId', []);
+      if (!/^0x[0-9a-f]+$/i.test(chainId)) throw new Error('Invalid RPC chain ID');
+      return { chainId: BigInt(chainId) };
+    },
+    read: async (method, ...args) => {
+      const data = contract.encodeFunctionData(method, args);
+      const value = await call('eth_call', [{ to: address, data }, 'latest']);
+      const decoded = contract.decodeFunctionResult(method, value);
+      return decoded.length === 1 ? decoded[0] : decoded;
+    },
+  };
+};
 
 export function redactRpcUrl(_rpcUrl: string): string {
   return '[redacted]';
@@ -136,16 +179,28 @@ function decodeLatest(value: unknown): { commitment: BatchCommitment; commitment
   return undefined;
 }
 
-export async function lookupBatch(evidence: BatchEvidence, trusted: TrustedBatchConfig, rpcUrl: string,
+type CommitmentEvidence = Pick<BatchEvidence, 'commitment' | 'commitmentHash' | 'previousCommitment'>;
+
+export async function lookupBatch(evidence: CommitmentEvidence, trusted: TrustedBatchConfig, rpcUrl: string,
+  connect?: ConnectEvidenceAnchor): Promise<StageResult> {
+  if (trusted.domain.name !== 'EvidenceAnchor' || trusted.domain.version !== '1'
+      || BigInt(trusted.domain.chainId) !== QUAI_ORCHARD_REGISTRY.chainId
+      || trusted.domain.verifyingContract.toLowerCase() !== QUAI_ORCHARD_REGISTRY.contractAddress) {
+    return result('direct-rpc', 'The verifier is not configured for the trusted Quai Orchard deployment domain.', 'CHAIN_ID_MISMATCH', 'UNVERIFIABLE');
+  }
+  return lookupAnchoredCommitment(evidence, trusted, rpcUrl, connect);
+}
+
+export function lookupLocalBatch(evidence: CommitmentEvidence, rpcUrl = local.rpcUrl,
+  connect = createLocalEvidenceAnchor): Promise<StageResult> {
+  return lookupAnchoredCommitment(evidence, LOCAL_VAULT_TRUST, rpcUrl, connect);
+}
+
+async function lookupAnchoredCommitment(evidence: CommitmentEvidence, trusted: TrustedBatchConfig, rpcUrl: string,
   connect?: ConnectEvidenceAnchor): Promise<StageResult> {
   const stage = 'direct-rpc';
   if (!connect) {
     return result(stage, 'A read-only EvidenceAnchor provider is required.', 'CONTRACT_LOOKUP_UNAVAILABLE', 'UNVERIFIABLE');
-  }
-  if (trusted.domain.name !== 'EvidenceAnchor' || trusted.domain.version !== '1'
-      || BigInt(trusted.domain.chainId) !== QUAI_ORCHARD_REGISTRY.chainId
-      || trusted.domain.verifyingContract.toLowerCase() !== QUAI_ORCHARD_REGISTRY.contractAddress) {
-    return result(stage, 'The verifier is not configured for the trusted Quai Orchard deployment domain.', 'CHAIN_ID_MISMATCH', 'UNVERIFIABLE');
   }
 
   let sourceId: string;
@@ -173,13 +228,14 @@ export async function lookupBatch(evidence: BatchEvidence, trusted: TrustedBatch
       return result(stage, 'RPC returned an incomplete source registration.', 'RPC_RESPONSE_INVALID', 'UNVERIFIABLE');
     }
     source = decodedSource;
-    if (!source.registered || source.revoked) {
-      return result(stage, 'The evidence source is not registered and active.', 'CONTRACT_LOOKUP_UNAVAILABLE', 'UNVERIFIABLE');
+    if (!source.registered) {
+      return result(stage, 'The evidence source is not registered.', 'CONTRACT_LOOKUP_UNAVAILABLE', 'UNVERIFIABLE');
     }
     if (source.signer.toLowerCase() !== trusted.signer.toLowerCase()) {
       return result(stage, 'The registered Vault signer differs from the trusted configured signer.', 'TRUSTED_CONFIG_MISMATCH', 'UNVERIFIABLE');
     }
 
+    // Registrations cannot be overwritten. Revocation prevents new anchors but preserves existing ones.
     const hash = commitmentHash(evidence.commitment);
     if (await withRequestTimeout(reader.read('isBatchAnchored', hash)) !== true) {
       return result(stage, 'RPC did not confirm this commitment is anchored.', 'CONTRACT_LOOKUP_UNAVAILABLE', 'UNVERIFIABLE');
