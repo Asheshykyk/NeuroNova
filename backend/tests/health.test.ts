@@ -5,7 +5,9 @@ import { createApp } from '../src/api/app.ts';
 
 test('GET /health returns a healthy status', async (context) => {
   const server = createApp().listen(0, '127.0.0.1');
-  context.after(() => server.close());
+  context.after(() => new Promise<void>((resolve, reject) => {
+    server.close((error) => error ? reject(error) : resolve());
+  }));
 
   await new Promise<void>((resolve, reject) => {
     server.once('listening', resolve);
