@@ -171,7 +171,8 @@ export function generateAgentKeyPair(seed?: Buffer | Uint8Array): AgentKeyPair {
  *   || sourceId (32B)
  *   || deliveryIdLen (2B BE) || deliveryId (MB)
  *   || streamIdLen (2B BE) || streamId (KB)
- *   || fileIdentityLen (2B BE) || fileIdentity (LB)
+ *   || fileIdentityLen (2B BE) || fileIdentity (PB, e.g. "/var/log/auth.log")
+ *   || fileGenerationLen (2B BE) || fileGeneration (GB, e.g. "dev:2049:ino:142857")
  *   || byteOffset (8B BE uint64)
  *   || observedAt (8B BE uint64)
  *   || payloadLen (4B BE uint32) || payload (NB)
@@ -194,13 +195,19 @@ export function encodeAgentChunkPreimage(chunk: AgentChunk): Buffer {
   const streamIdLenBuf = Buffer.alloc(2);
   streamIdLenBuf.writeUInt16BE(streamIdBuf.length, 0);
 
-  const fileGenStr = chunk.fileGeneration ?? chunk.fileIdentity ?? '';
-  const fileIdentityBuf = Buffer.from(fileGenStr, 'utf-8');
+  const fileIdentityBuf = Buffer.from(chunk.fileIdentity ?? '', 'utf-8');
   if (fileIdentityBuf.length > 65535) {
-    throw new RangeError(`fileGeneration/fileIdentity exceeds maximum length of 65535 bytes: got ${fileIdentityBuf.length}`);
+    throw new RangeError(`fileIdentity exceeds maximum length of 65535 bytes: got ${fileIdentityBuf.length}`);
   }
   const fileIdentityLenBuf = Buffer.alloc(2);
   fileIdentityLenBuf.writeUInt16BE(fileIdentityBuf.length, 0);
+
+  const fileGenerationBuf = Buffer.from(chunk.fileGeneration ?? '', 'utf-8');
+  if (fileGenerationBuf.length > 65535) {
+    throw new RangeError(`fileGeneration exceeds maximum length of 65535 bytes: got ${fileGenerationBuf.length}`);
+  }
+  const fileGenerationLenBuf = Buffer.alloc(2);
+  fileGenerationLenBuf.writeUInt16BE(fileGenerationBuf.length, 0);
 
   const byteOffsetBuf = Buffer.alloc(8);
   byteOffsetBuf.writeBigUInt64BE(BigInt(chunk.byteOffset ?? 0n), 0);
@@ -221,6 +228,8 @@ export function encodeAgentChunkPreimage(chunk: AgentChunk): Buffer {
     streamIdBuf,
     fileIdentityLenBuf,
     fileIdentityBuf,
+    fileGenerationLenBuf,
+    fileGenerationBuf,
     byteOffsetBuf,
     observedAtBuf,
     payloadLenBuf,
