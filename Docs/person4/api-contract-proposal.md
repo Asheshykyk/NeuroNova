@@ -41,7 +41,7 @@ The following Person 2 review corrections are conditionally architecture-approve
 - The source-scoped event detail route is `GET /api/v1/sources/:sourceId/events/:vaultSequence`.
 - A reconnect triggers REST refetch/reconciliation once approved read endpoints exist.
 - WebSocket notification deduplication uses `messageId`.
-- `event.persisted` replaces `event.received` and is emitted only after durable Vault persistence succeeds.
+- `event.persisted` is emitted only after durable Vault persistence succeeds.
 
 ### PROPOSED / NOT IMPLEMENTED
 
@@ -204,10 +204,16 @@ and is not a proposed dashboard read mapping.
 | Parameter | Type | Proposed meaning |
 | --- | --- | --- |
 | `sourceId` | string | Scope the result to one source. |
-| `nextCursor` | string | Opaque continuation cursor; cursor contents must not be interpreted by the dashboard. |
+| `cursor` | string | Opaque continuation cursor; cursor contents must not be interpreted by the dashboard. |
 | `limit` | integer | Requested page size. Default `50`; maximum `100`. Values above `100` must be rejected or capped by the final approved API convention. |
 | `observedAtFrom` | RFC 3339 UTC string | Inclusive lower observation-time bound. |
 | `observedAtTo` | RFC 3339 UTC string | Inclusive upper observation-time bound. |
+
+List responses use `nextCursor` in the response body. `cursor` is a request
+parameter; `nextCursor` is not a request parameter.
+If a resource accepts `sequenceFrom` or `sequenceTo`, either sequence filter
+requires `sourceId`; without it, the request is invalid input. The final HTTP
+status and error code for this invalid input remain unapproved.
 
 All list responses should include the server observation time and an opaque
 `nextCursor` if another page exists. List order is stable by `sourceId`, then
@@ -264,7 +270,7 @@ Supported proposed filters:
 | `batchId` | Batch containing or associated with the event. |
 | `correlationStatus` | Proposed `PENDING`, `MATCHED`, `AGENT_ONLY`, `SYSLOG_ONLY`, or `LATE_ARRIVAL`. Final vocabulary requires approval. |
 | `evidenceStatus` | Proposed operational status filter. |
-| `nextCursor`, `limit`, `observedAtFrom`, `observedAtTo` | Common paging and time filters. |
+| `cursor`, `limit`, `observedAtFrom`, `observedAtTo` | Common paging and time filters. |
 
 Success shape:
 
@@ -296,6 +302,11 @@ promised in this read model. The authoritative event identity is
 `(sourceId, vaultSequence)`. `vaultSequence` starts and advances independently
 within each source; it is not global and is shared by both Host Agent and
 rsyslog observations for that source.
+
+If `sequenceFrom` or `sequenceTo` is supplied, `sourceId` must also be supplied.
+Requests that provide either sequence bound without `sourceId` are invalid input.
+The HTTP status and machine-readable error code for this validation remain
+pending Person 2 approval and are not defined as final here.
 
 ### Proposed `GET /api/v1/batches`
 
@@ -424,11 +435,17 @@ stable ordering and opaque cursor convention are agreed architecture decisions;
 the exact HTTP cursor encoding remains a final schema convention. The dashboard
 must treat cursor opacity as an implementation detail.
 
-Successful detail responses may return the resource object directly or through
-an approved object envelope. Until Person 2 approves a convention, Person 4
-cannot map detail responses.
+Event metadata detail is available through the proposed source-scoped route:
+`GET /api/v1/sources/:sourceId/events/:vaultSequence`. This route returns
+metadata only and does not automatically include original raw bytes. Raw-byte
+retrieval is a separate authorization-controlled capability. Its endpoint,
+permissions, and response or access schema are not finalized; no raw-evidence
+route is claimed here.
 
-Proposed error response:
+HTTP status mapping, machine-readable error vocabulary, read authentication,
+and authorization boundaries are pending Person 2 final approval.
+
+The following error response is illustrative only, not an approved schema:
 
 ```json
 {
@@ -465,6 +482,19 @@ A single topic-based WebSocket is sufficient for discussion, but its endpoint,
 authentication, subscription model, replay behavior, delivery guarantee, and
 message schema are not implemented.
 
+The following choices remain unresolved and require final Person 2 approval:
+
+- exact WebSocket URL;
+- authentication method;
+- source subscription model;
+- ping/pong or heartbeat/liveness behavior;
+- reconnect timing and whether REST reconciliation is triggered after every
+  successful reconnect;
+- how missed or duplicate frames are reconciled with the approved REST read APIs.
+
+No suggested endpoint, authentication method, subscription shape, or reconnect
+behavior below is approved. All are PROPOSED, NOT IMPLEMENTED.
+
 ```json
 {
   "messageId": "01J...",
@@ -476,7 +506,12 @@ message schema are not implemented.
     "vaultSequence": 1,
     "streamId": "auth.log",
     "observationSource": "host-agent",
+    "fileIdentity": "illustrative-file-identity",
+    "byteOffset": 12345,
+    "observedAt": "2026-11-20T10:00:00.000Z",
     "vaultReceivedAt": "2026-11-20T10:00:01.000Z",
+    "rawEventLength": 256,
+    "vaultPersistenceStatus": "VAULT_PERSISTED",
     "correlationStatus": "PENDING"
   }
 }
@@ -553,6 +588,37 @@ marked out of order and reconciled by REST, not reordered by socket arrival.
 No WebSocket frame is an acknowledgement of durable vault persistence. The
 event read API and `vaultPersistenceStatus` are the proposed durable-evidence
 authority.
+
+## Proposed status dimensions and transitions
+
+**PROPOSED — PERSON 2 AND FINAL JOINT SIGN-OFF PENDING**
+
+The following values describe separate dimensions rather than one guaranteed
+linear state machine:
+
+| Dimension | Proposed values or representation | Meaning |
+| --- | --- | --- |
+| Vault evidence | `PENDING`, `VAULT_PERSISTED`, `MISSING_FROM_VAULT` | Vault receipt/persistence state. |
+| Local Hardhat anchor | `NOT_ANCHORED`, `ANCHORED_SERVER_REPORTED` | API-reported local chain state only. |
+| Public Quai anchor | `NOT_ANCHORED`, `ANCHORED_SERVER_REPORTED`, `RPC_VERIFIED`, `UNVERIFIABLE` | Public commitment state, with `RPC_VERIFIED` only after independent direct-RPC verification. |
+| Collection | `PENDING`, `CORRELATED`, `COLLECTION_GAP` | Collection or reconciliation state. A gap is not evidence of an event. |
+| Integrity | `PENDING`, `VERIFIED`, `CONTENT_MISMATCH`, `INVALID_PROOF`, `UNVERIFIABLE` | Independent or server-reported result as separately labeled. |
+
+Illustrative transition table for review, not an approved enum or backend state machine:
+
+| From | Event/condition | Proposed result dimensions |
+| --- | --- | --- |
+| Event not received | Approved Vault read reports no record | `VAULT_PERSISTED=false`; no integrity verdict |
+| Event received, bytes not persisted point met | Vault receipt pending acknowledgement | `PENDING`, no public anchor claim |
+| Durable Vault persistence succeeds | Vault records preserved bytes | `VAULT_PERSISTED` only |
+| Batch created, anchor absent | Batch metadata exists | `VAULT_PERSISTED`; public/local anchor `NOT_ANCHORED` or `PENDING` |
+| API reports local or public anchor | Server provides transaction/reference | `ANCHORED_SERVER_REPORTED`, never `RPC_VERIFIED` |
+| Direct-RPC commitment matches | Independent chain evidence succeeds | `RPC_VERIFIED` for the commitment; full event `VERIFIED` only if required evidence/proof/signature checks also pass |
+| RPC unavailable or evidence missing | Required chain/material check cannot complete | `UNVERIFIABLE`, not `TAMPERED` or `COLLECTION_GAP` |
+| Collection window missed | Heartbeat/window evidence expires | `COLLECTION_GAP`; no conclusion about event occurrence |
+| Cryptographic mismatch established | Preserved bytes, proof or signed commitment conflict | `TAMPERED` or integrity mismatch in the appropriate person-specific result vocabulary |
+
+These enum names and transitions are PROPOSED and require explicit joint approval.
 
 ## Evidence export response
 

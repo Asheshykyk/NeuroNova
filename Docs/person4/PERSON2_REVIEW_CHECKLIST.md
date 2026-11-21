@@ -33,6 +33,10 @@ live dashboard mappings until Person 2 signs off the final schemas.
 - [x] `fileIdentity` and `byteOffset` are metadata, not unique event identifiers.
 - [x] Pagination is default `50`, maximum `100`, uses `nextCursor`, and uses stable
   ordering by `sourceId`, then `vaultSequence` ascending.
+- [x] REST request pagination uses `cursor`; response pagination uses `nextCursor`.
+- [x] `sequenceFrom` or `sequenceTo` requires `sourceId`; omission is invalid input.
+- [x] Metadata detail does not automatically include raw bytes.
+- [x] Raw-evidence retrieval remains separate, authorization-controlled and pending.
 - [x] Identical Host Agent delivery-ID retries return the original receipt.
 - [x] Conflicting Host Agent delivery-ID reuse returns HTTP 409.
 - [x] Repeated rsyslog observations remain separate Vault records.
@@ -73,13 +77,17 @@ Status: **APPROVED — AGREED CORRECTIONS**
 Status: **PENDING FINAL SCHEMA SIGN-OFF**
 
 - [x] Pagination uses opaque `nextCursor`
+- [x] Request parameter is `cursor`
 - [x] Default page size is `50`; maximum is `100`
 - [x] Stable ordering is `sourceId`, then `vaultSequence` ascending
+- [x] `sequenceFrom`/`sequenceTo` require `sourceId`
 - [ ] Event/source/batch/checkpoint/gap filter names
 - [ ] Source scoping and ordering
-- [ ] Authentication and authorization
+- [ ] Authentication requirements for read endpoints
+- [ ] Authorization boundaries, including raw evidence
 - [ ] HTTP status mapping
-- [ ] Machine-readable error envelope
+- [ ] Machine-readable error code vocabulary
+- [ ] Validation error convention for missing sourceId, invalid cursor or limit, and out-of-range sequence filters
 - [ ] Empty-result and stale-refresh behavior
 - [ ] Final confirmation of `/health` versus no `/api/v1/health`
 
@@ -99,28 +107,32 @@ Status: **APPROVED — AGREED CORRECTIONS**
 
 Status: **PENDING FINAL SCHEMA SIGN-OFF**
 
-- [ ] Final endpoint and source subscription scope
-- [ ] Authentication
+- [ ] Exact WebSocket endpoint
+- [ ] Authentication method
+- [ ] Source subscription model
 - [x] `messageId`, `occurredAt`, `type`, `sourceId`, `payload` envelope
-- [ ] `event.persisted` and all remaining event type names
+- [x] `event.persisted` is emitted only after durable Vault persistence succeeds
+- [ ] Approval of remaining event type names and payload structures
 - [ ] Payload structures for each type
 - [x] `messageId` deduplication behavior
-- [ ] No replay/resumption promise
+- [x] No replay/resumption promise
 - [ ] REST refetch/reconciliation after reconnect
-- [ ] Heartbeat/ping behavior
+- [ ] Ping/pong and connection liveness behavior
 - [ ] Out-of-order and duplicate delivery behavior
 
 ### 5. Status semantics
 
-Status:
+Status: **PROPOSED — PENDING JOINT SIGN-OFF**
 
-- [ ] `VAULT_PERSISTED`
-- [ ] Local Hardhat anchoring
-- [ ] Public Quai anchoring
-- [ ] `ANCHORED_SERVER_REPORTED`
-- [ ] `RPC_VERIFIED`
-- [ ] `UNVERIFIABLE`
-- [ ] `COLLECTION_GAP`
+- [ ] Proposed `VAULT_PERSISTED`, `PENDING`, and missing-persistence dimension
+- [ ] Proposed local Hardhat anchoring dimension
+- [ ] Proposed public Quai anchoring dimension
+- [ ] Proposed `ANCHORED_SERVER_REPORTED`
+- [ ] Proposed `RPC_VERIFIED`
+- [ ] Proposed `UNVERIFIABLE`
+- [ ] Proposed `COLLECTION_GAP`
+- [ ] Confirm status dimensions are non-linear
+- [ ] Confirm proposed transition table
 - [ ] Confirmation that RPC_VERIFIED requires direct-RPC evidence
 - [ ] Confirmation that UNVERIFIABLE is not tampering
 - [ ] Confirmation that public/server anchoring is not full event-level VERIFIED

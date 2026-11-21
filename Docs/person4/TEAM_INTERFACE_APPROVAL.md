@@ -43,8 +43,14 @@ to final schema and implementation sign-off:
 - [x] `fileIdentity` and `byteOffset` are not event identities.
 - [x] Pagination uses default `50`, maximum `100`, `nextCursor`, and stable
   ordering by `sourceId`, then `vaultSequence`.
+- [x] The REST request parameter is `cursor`; the response continuation field is
+  `nextCursor`.
+- [x] If `sequenceFrom` or `sequenceTo` is supplied, `sourceId` must also be supplied.
+  Missing `sourceId` is invalid input.
+- [x] Event metadata detail does not automatically return original raw bytes.
+  Raw-evidence retrieval is separately authorization-controlled and not finalized.
 - [x] WebSocket notifications are deduplicated by `messageId`.
-- [x] `event.persisted` replaces `event.received` and requires durable Vault persistence.
+- [x] `event.persisted` is emitted only after durable Vault persistence succeeds.
 - [x] No replay/resumption promise is made in the first integration.
 - [x] Reconnect will trigger REST refetch/reconciliation after approved read APIs exist.
 - [x] ZIP export is pending; no manifest or bundle layout is approved.
@@ -64,8 +70,12 @@ to final schema and implementation sign-off:
 - [ ] WebSocket server and approved message schemas.
 - [ ] ZIP evidence export.
 - [ ] Evidence detail and verification read contracts.
-- [ ] Final filtering, authentication, and error conventions.
+- [ ] Raw-evidence endpoint, permissions, and response schema.
+- [ ] Final filtering and cursor/filter validation conventions.
+- [ ] HTTP status mapping and machine-readable error vocabulary.
+- [ ] Authentication requirements and authorization boundaries for read endpoints.
 - [ ] Final read-model field names and status enum values.
+- [ ] WebSocket endpoint, authentication, subscription, liveness and reconnect/reconciliation details.
 
 ## Cross-team repository decisions
 
@@ -102,6 +112,10 @@ to final schema and implementation sign-off:
 - [ ] Confirm the event, batch, verification-result, health, and evidence-detail response fields.
 - [ ] Confirm vault-assigned sequence ownership, durable-receipt acknowledgement point, reconciliation state vocabulary, and retention of raw bytes.
 - [ ] Confirm WebSocket endpoint, authentication, subscription scope, event envelope, replay or resumption semantics, duplicate handling, ordering, and liveness behaviour.
+- [ ] Confirm no guaranteed replay/resumption and the final reconnect/REST reconciliation behavior.
+- [ ] Confirm HTTP status mapping and error code vocabulary.
+- [ ] Confirm authentication for read endpoints and authorization boundaries, including raw evidence.
+- [ ] Confirm proposed status dimensions and transitions or replace them with approved enums.
 - [ ] Confirm the exact source-scoped read route and response schema.
 - [ ] Confirm whether reconnect-triggered REST refetch is sufficient and whether
   the server promises any replay.
