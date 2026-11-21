@@ -58,4 +58,17 @@ describe('ApiTransport', () => {
       validate: (value): value is { ok: true } => false,
     })).rejects.toThrow('type validation');
   });
+
+  it('returns an error for a non-success HTTP response', async () => {
+    vi.stubGlobal('fetch', vi.fn(async () => ({
+      ok: false,
+      status: 503,
+      json: async () => ({ error: 'unavailable' }),
+    })));
+    const transport = new ApiTransport({ baseUrl: 'https://api.example', timeoutMs: 100 });
+
+    await expect(transport.request('/approved-resource', {
+      validate: (value): value is object => typeof value === 'object',
+    })).rejects.toThrow('API request failed (503)');
+  });
 });

@@ -65,4 +65,50 @@ describe('WebSocketTransport', () => {
     expect(sockets[1].close).toHaveBeenCalledOnce();
     vi.advanceTimersByTime(10_000);
   });
+
+  it('does not refetch when no approved read contract callback exists', () => {
+    vi.useFakeTimers();
+    const sockets: FakeWebSocket[] = [];
+    const transport = new WebSocketTransport({
+      endpoint: 'wss://example.invalid/feed',
+      factory: () => {
+        const socket = new FakeWebSocket();
+        sockets.push(socket);
+        return socket as unknown as WebSocket;
+      },
+    });
+
+    transport.connect();
+    sockets[0].onclose?.();
+    vi.advanceTimersByTime(500);
+    sockets[1].onopen?.();
+    transport.disconnect();
+    expect(sockets[1].close).toHaveBeenCalledOnce();
+  });
+
+  it('stops reconnecting after the configured bound', () => {
+    vi.useFakeTimers();
+    const sockets: FakeWebSocket[] = [];
+    const states: string[] = [];
+    const transport = new WebSocketTransport({
+      endpoint: 'wss://example.invalid/feed',
+      maxAttempts: 2,
+      initialDelayMs: 100,
+      factory: () => {
+        const socket = new FakeWebSocket();
+        sockets.push(socket);
+        return socket as unknown as WebSocket;
+      },
+      onStateChange: (state) => states.push(state),
+    });
+
+    transport.connect();
+    sockets[0].onclose?.();
+    vi.advanceTimersByTime(100);
+    sockets[1].onclose?.();
+    vi.advanceTimersByTime(200);
+    sockets[2].onclose?.();
+    expect(states.at(-1)).toBe('disconnected');
+    expect(sockets).toHaveLength(3);
+  });
 });

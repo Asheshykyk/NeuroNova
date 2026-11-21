@@ -37,4 +37,13 @@ describe('dashboard data sources', () => {
     expect(live.adapter.getEvents()).toEqual([]);
     expect(live.adapter.getCheckpoints()).toEqual([]);
   });
+
+  it('shows live backend unavailable when both endpoints are missing', () => {
+    const live = createDashboardDataSource({
+      VITE_TRUSTTRACE_DATA_MODE: 'live',
+    });
+    const adapter = live.adapter as ReturnType<typeof createLiveDashboardAdapter>;
+
+    expect(adapter.liveState().configError).toBe('Missing VITE_TRUSTTRACE_API_BASE_URL');
+  });
 });

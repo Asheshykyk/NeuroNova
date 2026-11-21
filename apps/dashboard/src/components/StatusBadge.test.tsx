@@ -18,4 +18,16 @@ describe('StatusBadge', () => {
     render(<StatusBadge state="verified" />);
     expect(screen.getByText('Verified · direct RPC')).toBeInTheDocument();
   });
+
+  it('does not label missing checkpoint data as verified', () => {
+    render(<StatusBadge state="unanchored" />);
+    expect(screen.getByText('Unanchored')).toBeInTheDocument();
+    expect(screen.queryByText(/verified/i)).not.toBeInTheDocument();
+  });
+
+  it('keeps API-reported anchoring separate from independent verification', () => {
+    render(<StatusBadge state="anchored-server-reported" />);
+    expect(screen.getByText('Anchored · API reported')).toBeInTheDocument();
+    expect(screen.queryByText(/direct RPC/i)).not.toBeInTheDocument();
+  });
 });
