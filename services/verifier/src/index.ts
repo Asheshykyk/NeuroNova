@@ -2,7 +2,8 @@
 import { ArgumentError, parseArgs, usage } from './args.js';
 import { verifyBundle } from './verify.js';
 import type { VerificationResult } from './types.js';
-import { createQuaiEvidenceAnchor, QUAI_ORCHARD_REGISTRY } from './rpc.js';
+import { createQuaiEvidenceAnchor, QUAI_ORCHARD_REGISTRY, redactRpcUrl } from './rpc.js';
+import type { CliArguments } from './args.js';
 
 const exitCodes = { VERIFIED: 0, TAMPERED: 1, UNVERIFIABLE: 2, USAGE: 64 } as const;
 
@@ -17,8 +18,9 @@ function formatResult(result: VerificationResult): string {
 }
 
 export async function run(argv: string[], writeOut = console.log, writeError = console.error): Promise<number> {
+  let args: CliArguments | undefined;
   try {
-    const args = parseArgs(argv);
+    args = parseArgs(argv);
     if (args.help) {
       writeOut(usage());
       return exitCodes.VERIFIED;
@@ -45,9 +47,25 @@ export async function run(argv: string[], writeOut = console.log, writeError = c
     writeOut(args.json ? JSON.stringify(result, null, 2) : formatResult(result));
     return exitCodes[result.status];
   } catch (error) {
-    const message = error instanceof ArgumentError ? error.message : 'Unexpected verifier error.';
-    writeError(`${message}\n\n${usage()}`);
-    return exitCodes.USAGE;
+    if (error instanceof ArgumentError) {
+      writeError(`${error.message}\n\n${usage()}`);
+      return exitCodes.USAGE;
+    }
+    if (!args?.bundlePath || !args.rpcUrl) {
+      writeError('Verifier execution failed; no integrity verdict was produced.');
+      return exitCodes.UNVERIFIABLE;
+    }
+    const result: VerificationResult = {
+      status: 'UNVERIFIABLE',
+      reasonCode: 'VERIFIER_INTERNAL_ERROR',
+      message: 'Verifier execution failed; no integrity verdict was produced.',
+      bundlePath: args.bundlePath,
+      rpcUrl: redactRpcUrl(args.rpcUrl),
+      stages: [],
+      verifiedAt: new Date().toISOString(),
+    };
+    writeOut(args.json ? JSON.stringify(result, null, 2) : formatResult(result));
+    return exitCodes.UNVERIFIABLE;
   }
 }
 

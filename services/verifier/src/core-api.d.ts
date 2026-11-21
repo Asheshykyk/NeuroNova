@@ -4,6 +4,7 @@ import type { BatchCommitment, CanonicalEvent, EIP712Domain } from '@trusttrace/
 
 export const EvidenceAnchorABI: readonly object[];
 export const GENESIS_CHECKPOINT_HASH: string;
+export const GENESIS_CHECKPOINT_DIGEST: string;
 export function formatSourceId(sourceId: CanonicalEvent['sourceId']): Buffer;
 export function hashLeaf(event: CanonicalEvent): Buffer;
 export function computeCommitmentStructHashHex(commitment: BatchCommitment): string;
@@ -27,3 +28,7 @@ export function buildCheckpoint(input: CheckpointInput): {
   digestHex: string;
 };
 export function checkCheckpoint(checkpoint: CheckpointInput, expectedDigest: string | Uint8Array | Buffer): boolean;
+export function verifyCheckpointContinuity(
+  current: CheckpointInput,
+  previousDigest: string | Uint8Array | Buffer
+): boolean;

@@ -10,6 +10,8 @@ describe('argument parsing', () => {
 
   it('rejects unknown or incomplete arguments', () => {
     expect(() => parseArgs(['verify', '--bundle'])).toThrow(ArgumentError);
-    expect(() => parseArgs(['verify', '--unknown'])).toThrow('Unknown argument');
+    expect(() => parseArgs(['verify', '--unknown'])).toThrow('Unknown option');
+    expect(() => parseArgs(['verify', '--rpc-url', 'file:///tmp/provider'])).toThrow('valid HTTP(S) URL');
+    expect(() => parseArgs(['verify', '--rpc-url=https://user:secret@rpc.example'])).toThrow('Unknown option');
   });
 });
