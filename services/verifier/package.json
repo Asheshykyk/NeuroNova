@@ -1,0 +1,24 @@
+{
+  "name": "@trusttrace/verifier",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "bin": {
+    "trusttrace": "./dist/index.js"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "vitest run",
+    "verify": "npm run build && node dist/index.js verify"
+  },
+  "devDependencies": {
+    "@types/node": "^24.0.0",
+    "typescript": "^5.9.3",
+    "vitest": "^4.0.0"
+  },
+  "dependencies": {
+    "@trusttrace/core": "file:../../packages/core",
+    "quais": "1.0.0-alpha.58"
+  }
+}
