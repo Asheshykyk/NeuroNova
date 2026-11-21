@@ -1,6 +1,14 @@
 import type { EvidenceEvent } from '../types';
 
-export function eventIdentity(sourceId: string, vaultSequence: number): string {
+function sequenceValue(vaultSequence: string): bigint {
+  if (!/^\d+$/.test(vaultSequence)) {
+    throw new TypeError('vaultSequence must be a decimal string');
+  }
+  return BigInt(vaultSequence);
+}
+
+export function eventIdentity(sourceId: string, vaultSequence: string): string {
+  sequenceValue(vaultSequence);
   return `${sourceId}:${vaultSequence}`;
 }
 
@@ -20,6 +28,9 @@ export function mergeEvidenceEvents(
     if (left.sourceId !== right.sourceId) {
       return left.sourceId.localeCompare(right.sourceId);
     }
-    return left.vaultSequence - right.vaultSequence;
+    const leftSequence = sequenceValue(left.vaultSequence);
+    const rightSequence = sequenceValue(right.vaultSequence);
+    if (leftSequence !== rightSequence) return leftSequence < rightSequence ? -1 : 1;
+    return left.vaultSequence.localeCompare(right.vaultSequence);
   });
 }

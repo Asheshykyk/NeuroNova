@@ -20,6 +20,13 @@ describe('StatusBadge', () => {
     expect(screen.getByText('Independent RPC · checkpoint commitment')).toBeInTheDocument();
   });
 
+  it('preserves an unknown API status without mapping it to a known verdict', () => {
+    render(<StatusBadge state="FUTURE_BACKEND_STATUS" />);
+    const badge = screen.getByText('Unknown status · FUTURE_BACKEND_STATUS');
+    expect(badge).toHaveAttribute('data-state', 'FUTURE_BACKEND_STATUS');
+    expect(badge).toHaveClass('status-unknown');
+  });
+
   it('retains the Auditor CLI outcome vocabulary', () => {
     render(<StatusBadge state={{ kind: 'auditor-cli', outcome: 'TAMPERED' }} />);
     expect(screen.getByText('Auditor CLI · TAMPERED')).toBeInTheDocument();

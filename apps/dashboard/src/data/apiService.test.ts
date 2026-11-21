@@ -51,14 +51,20 @@ describe('DashboardApiService', () => {
     const params = buildCursorQuery({
       sourceId: 'host-lab-01',
       sequenceFrom: '10',
-      sequenceTo: 20,
+      sequenceTo: '9007199254740993',
       limit: 100,
     });
 
     expect(params.get('sourceId')).toBe('host-lab-01');
     expect(params.get('sequenceFrom')).toBe('10');
-    expect(params.get('sequenceTo')).toBe('20');
+    expect(params.get('sequenceTo')).toBe('9007199254740993');
     expect(params.get('limit')).toBe('100');
+  });
+
+  it('rejects non-decimal source-local sequence filters', () => {
+    expect(() => buildCursorQuery({ sourceId: 'host-lab-01', sequenceFrom: '1e3' })).toThrow(
+      'sequenceFrom must be a decimal string',
+    );
   });
 
   it('does not request more than the maximum page size', () => {

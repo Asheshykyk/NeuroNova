@@ -8,23 +8,28 @@ export type ViewId =
 
 export type ViewState = 'loading' | 'empty' | 'error' | 'disconnected' | 'stale';
 
+export type ExtensibleStatus<Known extends string> = Known | (string & {});
+
 export type VaultPersistenceStatus =
   | 'PENDING'
   | 'VAULT_PERSISTED'
-  | 'PERSISTENCE_FAILED';
+  | 'PERSISTENCE_FAILED'
+  | (string & {});
 
 export type AnchorStatus =
   | 'PENDING'
   | 'ANCHORED_SERVER_REPORTED'
-  | 'ANCHOR_FAILED';
+  | 'ANCHOR_FAILED'
+  | (string & {});
 
 export type IndependentVerificationStatus =
   | 'PENDING'
   | 'RPC_VERIFIED'
   | 'UNVERIFIABLE'
-  | 'CHAIN_MISMATCH';
+  | 'CHAIN_MISMATCH'
+  | (string & {});
 
-export type CollectionGapStatus = 'COLLECTION_GAP';
+export type CollectionGapStatus = ExtensibleStatus<'COLLECTION_GAP'>;
 export type AuditorOutcome = 'VERIFIED' | 'TAMPERED' | 'UNVERIFIABLE';
 export interface AuditorCliBadge {
   kind: 'auditor-cli';
@@ -43,7 +48,8 @@ export type ProposedCorrelationStatus =
   | 'MATCHED'
   | 'AGENT_ONLY'
   | 'SYSLOG_ONLY'
-  | 'LATE_ARRIVAL';
+  | 'LATE_ARRIVAL'
+  | (string & {});
 
 export interface DemoEventDetails {
   payloadHash?: string;
@@ -55,7 +61,7 @@ export interface DemoEventDetails {
 export interface EvidenceEvent {
   eventId: string;
   sourceId: string;
-  vaultSequence: number;
+  vaultSequence: string;
   streamId: 'auth.log';
   observationSource: 'host-agent' | 'rsyslog-tcp';
   fileIdentity: string;

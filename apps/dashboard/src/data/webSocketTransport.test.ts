@@ -123,7 +123,7 @@ describe('WebSocketTransport', () => {
           sourceId: 'host-lab-01',
           payload: {
             eventId: 'host-lab-01:4',
-            vaultSequence: 4,
+            vaultSequence: '4',
             value,
           },
         }),

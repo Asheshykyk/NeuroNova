@@ -10,7 +10,7 @@ import { eventIdentity, mergeEvidenceEvents } from './eventOrdering';
 
 function demoEvent(
   sourceId: string,
-  vaultSequence: number,
+  vaultSequence: string,
   observationSource: EvidenceEvent['observationSource'],
   fileIdentity: string,
   byteOffset: number,
@@ -43,7 +43,7 @@ function demoEvent(
 const events = mergeEvidenceEvents([], [
   demoEvent(
     'host-lab-01',
-    184,
+    '184',
     'host-agent',
     'file-auth-log-01',
     8912,
@@ -60,7 +60,7 @@ const events = mergeEvidenceEvents([], [
   ),
   demoEvent(
     'host-lab-01',
-    185,
+    '185',
     'rsyslog-tcp',
     'file-auth-log-01',
     8998,
@@ -78,7 +78,7 @@ const events = mergeEvidenceEvents([], [
   ),
   demoEvent(
     'host-lab-01',
-    186,
+    '186',
     'host-agent',
     'file-auth-log-01',
     9112,
@@ -90,7 +90,7 @@ const events = mergeEvidenceEvents([], [
   ),
   demoEvent(
     'host-lab-02',
-    1,
+    '1',
     'rsyslog-tcp',
     'file-auth-log-02',
     0,

@@ -1,6 +1,6 @@
 import type { AuditorCliBadge, AuditorOutcome, StatusBadgeState } from '../types';
 
-const labels: Record<StatusBadgeState, string> = {
+const labels: Record<string, string> = {
   loading: 'Loading',
   empty: 'No records',
   error: 'Error',
@@ -24,10 +24,17 @@ const auditorLabels: Record<AuditorOutcome, string> = {
 };
 
 export function StatusBadge({ state }: { state: StatusBadgeState | AuditorCliBadge }) {
+  const isAuditorOutcome = typeof state === 'object';
+  const statusValue = typeof state === 'string' ? state : undefined;
+  const isKnownStatus = statusValue !== undefined && Object.hasOwn(labels, statusValue);
   const classState = typeof state === 'object'
     ? `auditor-cli-${state.outcome.toLowerCase()}`
-    : state.toLowerCase().replace(/_/g, '-');
-  const label = typeof state === 'object' ? auditorLabels[state.outcome] : labels[state];
+    : isKnownStatus
+      ? state.toLowerCase().replace(/_/g, '-')
+      : 'unknown';
+  const label = isAuditorOutcome
+    ? auditorLabels[state.outcome]
+    : labels[state] ?? `Unknown status · ${state}`;
   const dataState = typeof state === 'object' ? `AUDITOR_CLI:${state.outcome}` : state;
   return (
     <span className={`status status-${classState}`} data-state={dataState}>

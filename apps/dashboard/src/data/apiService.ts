@@ -1,6 +1,6 @@
 import type { ApiTransport } from './apiTransport';
 
-type SequenceFilter = string | number;
+type SequenceFilter = string;
 
 type CursorListOptions = {
   cursor?: string;
@@ -40,8 +40,14 @@ export function buildCursorQuery(query: CursorListQuery): URLSearchParams {
   if (query.cursor !== undefined) params.set('cursor', query.cursor);
   params.set('limit', String(limit));
   if (query.sourceId !== undefined) params.set('sourceId', query.sourceId);
-  if (query.sequenceFrom !== undefined) params.set('sequenceFrom', String(query.sequenceFrom));
-  if (query.sequenceTo !== undefined) params.set('sequenceTo', String(query.sequenceTo));
+  if (query.sequenceFrom !== undefined) {
+    if (!/^\d+$/.test(query.sequenceFrom)) throw new TypeError('sequenceFrom must be a decimal string');
+    params.set('sequenceFrom', query.sequenceFrom);
+  }
+  if (query.sequenceTo !== undefined) {
+    if (!/^\d+$/.test(query.sequenceTo)) throw new TypeError('sequenceTo must be a decimal string');
+    params.set('sequenceTo', query.sequenceTo);
+  }
   return params;
 }
 

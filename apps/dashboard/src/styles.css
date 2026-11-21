@@ -30,6 +30,7 @@ main { min-width: 0; }.topbar { min-height: 66px; border-bottom: 1px solid #2031
 .status-vault-persisted, .status-rpc-verified, .status-verified, .status-auditor-cli-verified { color: #78e2b5; border-color: #2d7459; background: #14362b; }
 .status-persistence-failed, .status-anchor-failed, .status-chain-mismatch, .status-auditor-cli-tampered { color: #ff9b98; border-color: #784144; background: #351e25; }
 .status-unverifiable, .status-collection-gap, .status-auditor-cli-unverifiable { color: #ffd47b; border-color: #6c552d; background: #2c2518; }
+.status-unknown { color: #b7c4d5; border-color: #4a586c; background: #1e2938; }
 .status-panel { margin: 0 0 16px; }
 .state-panel p { margin: 4px 0; line-height: 1.55; }
 .status-dimensions { display: grid; gap: 9px; margin: 14px 0; }
