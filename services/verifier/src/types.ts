@@ -25,6 +25,7 @@ export type StageName =
   | 'bundle-parsing'
   | 'raw-byte-validation'
   | 'merkle-verification'
+  | 'public-checkpoint-verification'
   | 'commitment-matching'
   | 'vault-signature'
   | 'direct-rpc';
@@ -62,6 +63,7 @@ export interface VerifierDependencies {
   parseBundle: (bundlePath: string) => Promise<StageResult & { bundle?: ParsedBundle }>;
   validateRawBytes: (bundle: ParsedBundle) => Promise<StageResult>;
   verifyMerkle: (bundle: ParsedBundle) => Promise<StageResult>;
+  verifyPublicCheckpoint: (bundle: ParsedBundle) => Promise<StageResult>;
   matchCommitment: (bundle: ParsedBundle) => Promise<StageResult>;
   verifyVaultSignature: (bundle: ParsedBundle, options: VerifyOptions) => Promise<StageResult>;
   lookupCheckpoint: (bundle: ParsedBundle, rpcUrl: string, options: VerifyOptions) => Promise<StageResult>;

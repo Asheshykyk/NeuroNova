@@ -35,7 +35,7 @@ export async function verifyBundle(options: VerifyOptions, overrides: Partial<Ve
   }
 
   for (const stageRunner of [dependencies.validateRawBytes, dependencies.matchCommitment,
-    dependencies.verifyMerkle, dependencies.verifyVaultSignature]) {
+    dependencies.verifyMerkle, dependencies.verifyPublicCheckpoint, dependencies.verifyVaultSignature]) {
     const stage = await stageRunner(bundle, options);
     stages.push(stage);
     if (stage.status !== 'VERIFIED') return finalResult(options.bundlePath, options.rpcUrl, stages);

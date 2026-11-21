@@ -1,6 +1,6 @@
 import { constants } from 'node:fs';
 import { open } from 'node:fs/promises';
-import { matchCommitment, result, validateRawBytes, verifyMerkle, verifyVaultSignature } from './core.js';
+import { matchCommitment, result, validateRawBytes, verifyMerkle, verifyPublicCheckpoint, verifyVaultSignature } from './core.js';
 import { lookupBatch } from './rpc.js';
 import type { ParsedBundle, StageResult, VerifierDependencies } from './types.js';
 
@@ -54,6 +54,7 @@ export const defaultDependencies: VerifierDependencies = {
   validateRawBytes: async ({ evidence }) => evidence ? validateRawBytes(evidence) : missingEvidence('raw-byte-validation'),
   matchCommitment: async ({ evidence }) => evidence ? matchCommitment(evidence) : missingEvidence('commitment-matching'),
   verifyMerkle: async ({ evidence }) => evidence ? verifyMerkle(evidence) : missingEvidence('merkle-verification'),
+  verifyPublicCheckpoint: async ({ evidence }) => evidence ? verifyPublicCheckpoint(evidence) : missingEvidence('public-checkpoint-verification'),
   verifyVaultSignature: async ({ evidence }, { trusted }) => evidence
     ? verifyVaultSignature(evidence, trusted) : missingEvidence('vault-signature'),
   lookupCheckpoint: async ({ evidence }, rpcUrl, { trusted, connect }) => evidence && trusted

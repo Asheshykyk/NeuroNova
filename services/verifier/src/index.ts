@@ -2,6 +2,7 @@
 import { ArgumentError, parseArgs, usage } from './args.js';
 import { verifyBundle } from './verify.js';
 import type { VerificationResult } from './types.js';
+import { createQuaiEvidenceAnchor, QUAI_ORCHARD_REGISTRY } from './rpc.js';
 
 const exitCodes = { VERIFIED: 0, TAMPERED: 1, UNVERIFIABLE: 2, USAGE: 64 } as const;
 
@@ -27,7 +28,20 @@ export async function run(argv: string[], writeOut = console.log, writeError = c
       return exitCodes.USAGE;
     }
 
-    const result = await verifyBundle({ bundlePath: args.bundlePath, rpcUrl: args.rpcUrl });
+    const result = await verifyBundle({
+      bundlePath: args.bundlePath,
+      rpcUrl: args.rpcUrl,
+      trusted: {
+        signer: QUAI_ORCHARD_REGISTRY.expectedVaultSigner,
+        domain: {
+          name: 'EvidenceAnchor',
+          version: '1',
+          chainId: QUAI_ORCHARD_REGISTRY.chainId,
+          verifyingContract: QUAI_ORCHARD_REGISTRY.contractAddress,
+        },
+      },
+      connect: createQuaiEvidenceAnchor,
+    });
     writeOut(args.json ? JSON.stringify(result, null, 2) : formatResult(result));
     return exitCodes[result.status];
   } catch (error) {

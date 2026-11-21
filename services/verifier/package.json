@@ -18,6 +18,7 @@
     "vitest": "^4.0.0"
   },
   "dependencies": {
-    "@trusttrace/core": "file:../../packages/core"
+    "@trusttrace/core": "file:../../packages/core",
+    "quais": "1.0.0-alpha.58"
   }
 }

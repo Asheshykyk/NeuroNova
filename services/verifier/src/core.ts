@@ -1,7 +1,8 @@
 import { createHash } from 'node:crypto';
 import {
   computeCommitmentStructHashHex, formatSourceId, GENESIS_CHECKPOINT_HASH, hashLeaf,
-  validateSequenceContinuity, verifyCommitmentSignature, verifyMerkleProof
+  validateSequenceContinuity, verifyCommitmentSignature, verifyMerkleProof,
+  buildCheckpoint, checkCheckpoint
 } from '@trusttrace/core';
 import type { BatchCommitment, CanonicalEvent, EIP712Domain } from '@trusttrace/core/types';
 import type { StageResult } from './types.js';
@@ -20,6 +21,16 @@ export interface BatchEvidence {
   signature: string;
   commitmentHash: string;
   previousCommitment?: BatchCommitment;
+  rawMerkleRoot?: string;
+  publicCheckpoint?: {
+    previousCheckpointDigest: string;
+    localChainId: bigint | number;
+    localBlockNumber: bigint | number;
+    localBlockHash: string;
+    latestBatchRoot: string;
+    latestSequence: bigint | number;
+    contractAddress: string;
+  };
 }
 
 export interface TrustedBatchConfig {
@@ -89,6 +100,9 @@ export function matchCommitment(evidence: BatchEvidence): StageResult {
 export function verifyMerkle(evidence: BatchEvidence): StageResult {
   const stage = 'merkle-verification';
   const { commitment } = evidence;
+  if (!evidence.rawMerkleRoot || !bytes32.test(evidence.rawMerkleRoot)) {
+    return result(stage, 'The separate raw-event Merkle root is missing.', 'REQUIRED_EVIDENCE_MISSING', 'UNVERIFIABLE');
+  }
   if (commitment.leafCount > BigInt(Number.MAX_SAFE_INTEGER)) {
     return result(stage, 'Batch exceeds supported proof geometry.', 'BUNDLE_FORMAT_UNSUPPORTED', 'UNVERIFIABLE');
   }
@@ -103,7 +117,10 @@ export function verifyMerkle(evidence: BatchEvidence): StageResult {
       return result(stage, 'Event canonical encoding is unavailable.', 'BUNDLE_FORMAT_UNSUPPORTED', 'UNVERIFIABLE');
     }
     const sequence = event.vaultSequence;
-    if (!Array.isArray(event.siblings) || !event.siblings.every((hash) => bytes32.test(hash))) {
+    if (!Array.isArray(event.siblings) || event.siblings.length === 0) {
+      return result(stage, 'An inclusion proof is missing.', 'REQUIRED_EVIDENCE_MISSING', 'UNVERIFIABLE');
+    }
+    if (!event.siblings.every((hash) => bytes32.test(hash))) {
       return result(stage, 'Inclusion proof is missing or malformed.', 'REQUIRED_EVIDENCE_MISSING', 'UNVERIFIABLE');
     }
     if (seen.has(sequence)) {
@@ -111,12 +128,39 @@ export function verifyMerkle(evidence: BatchEvidence): StageResult {
     }
     if (sourceId !== commitment.sourceId.toLowerCase() || sequence < commitment.sequenceStart || sequence > commitment.sequenceEnd
         || !verifyMerkleProof(leaf, Number(sequence - commitment.sequenceStart), Number(commitment.leafCount),
-          [...event.siblings], commitment.merkleRoot)) {
+          [...event.siblings], evidence.rawMerkleRoot)) {
       return result(stage, 'Event does not match the committed source, sequence, or Merkle root.', 'PROOF_INVALID', 'TAMPERED');
     }
     seen.add(sequence);
   }
   return result(stage, 'Canonical event leaves match their inclusion proofs.');
+}
+
+export function verifyPublicCheckpoint(evidence: BatchEvidence): StageResult {
+  const stage = 'public-checkpoint-verification';
+  if (!evidence.publicCheckpoint) {
+    return result(stage, 'Public checkpoint linkage evidence is missing.', 'REQUIRED_EVIDENCE_MISSING', 'UNVERIFIABLE');
+  }
+  if (!evidence.rawMerkleRoot || !bytes32.test(evidence.rawMerkleRoot)
+      || !bytes32.test(evidence.publicCheckpoint.previousCheckpointDigest)
+      || !bytes32.test(evidence.publicCheckpoint.localBlockHash)) {
+    return result(stage, 'Public checkpoint evidence is missing or malformed.', 'REQUIRED_EVIDENCE_MISSING', 'UNVERIFIABLE');
+  }
+  if (evidence.publicCheckpoint.latestBatchRoot.toLowerCase() !== evidence.rawMerkleRoot.toLowerCase()
+      || BigInt(evidence.publicCheckpoint.latestSequence) !== evidence.commitment.sequenceEnd) {
+    return result(stage, 'Public checkpoint does not link the local batch evidence.', 'COMMITMENT_MISMATCH', 'TAMPERED');
+  }
+  const resultValue = buildCheckpoint({
+    ...evidence.publicCheckpoint,
+    latestBatchRoot: evidence.rawMerkleRoot,
+  });
+  if (!checkCheckpoint({
+    ...evidence.publicCheckpoint,
+    latestBatchRoot: evidence.rawMerkleRoot,
+  }, evidence.commitment.merkleRoot)) {
+    return result(stage, 'Public checkpoint digest differs from the committed BatchCommitment root.', 'COMMITMENT_MISMATCH', 'TAMPERED');
+  }
+  return result(stage, `Canonical public checkpoint digest matches the committed root: ${resultValue.digestHex}`);
 }
 
 export function verifyVaultSignature(evidence: BatchEvidence, trusted?: TrustedBatchConfig): StageResult {

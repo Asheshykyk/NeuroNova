@@ -1,7 +1,7 @@
 import { createHash } from 'node:crypto';
 import {
   buildMerkleTree, computeCommitmentStructHashHex, EvidenceAnchorABI, generateMerkleProof,
-  GENESIS_CHECKPOINT_HASH, getEthereumAddress, hashLeaf, signBatchCommitment
+  GENESIS_CHECKPOINT_HASH, getEthereumAddress, hashLeaf, signBatchCommitment, buildCheckpoint
 } from '@trusttrace/core';
 import { mkdtemp, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
@@ -46,6 +46,7 @@ describe('verification failure handling', () => {
       parseBundle: async () => ({ ...verified('bundle-parsing'), bundle: fixtureBundle }),
       validateRawBytes: async () => verified('raw-byte-validation'),
       verifyMerkle: async () => verified('merkle-verification'),
+      verifyPublicCheckpoint: async () => verified('public-checkpoint-verification'),
       matchCommitment: async () => verified('commitment-matching'),
       verifyVaultSignature: async () => verified('vault-signature'),
       lookupCheckpoint: async () => ({ stage: 'direct-rpc', status: 'UNVERIFIABLE', reasonCode: 'RPC_UNAVAILABLE', message: 'fixture RPC unavailable' })
@@ -69,21 +70,39 @@ function fixture() {
   const sourceId = '0x' + '61'.repeat(32);
   const trusted: TrustedBatchConfig = {
     signer: getEthereumAddress(key),
-    domain: { name: 'EvidenceAnchor', version: '1', chainId: 15000n, verifyingContract: '0x00' + '12'.repeat(19) }
+    domain: {
+      name: 'EvidenceAnchor',
+      version: '1',
+      chainId: 15000n,
+      verifyingContract: '0x00a89d7494cb3d16858a74e5cae1a965d14df5a2',
+    }
   };
   const events = [Buffer.from([0xff, 0x00, 0x0a]), Buffer.from([0x7b, 0x0d, 0x0a])].map((rawEventBytes, index) => ({
     version: 1, sourceId, vaultSequence: BigInt(index + 1), rawEventBytes,
     payloadHash: '0x' + createHash('sha256').update(rawEventBytes).digest('hex')
   }));
   const tree = buildMerkleTree(events.map(hashLeaf));
+  const rawMerkleRoot = '0x' + tree.root.toString('hex');
+  const publicCheckpoint = {
+    previousCheckpointDigest: GENESIS_CHECKPOINT_HASH,
+    localChainId: 31337,
+    localBlockNumber: 82,
+    localBlockHash: '0x' + '22'.repeat(32),
+    latestBatchRoot: rawMerkleRoot,
+    latestSequence: 2n,
+    contractAddress: '0x0012345678901234567890123456789012345678',
+  };
+  const publicDigest = buildCheckpoint(publicCheckpoint).digestHex;
   const commitment = {
     sourceId, sequenceStart: 1n, sequenceEnd: 2n, leafCount: 2n,
-    merkleRoot: '0x' + tree.root.toString('hex'), previousCheckpointHash: GENESIS_CHECKPOINT_HASH
+    merkleRoot: publicDigest, previousCheckpointHash: GENESIS_CHECKPOINT_HASH
   };
   const evidence: BatchEvidence = {
     events: events.map((event, index) => ({ ...event, siblings: generateMerkleProof(tree.layers, index).siblings })),
     commitment, commitmentHash: computeCommitmentStructHashHex(commitment),
-    signature: signBatchCommitment(key, trusted.domain, commitment).signature
+    signature: signBatchCommitment(key, trusted.domain, commitment).signature,
+    rawMerkleRoot,
+    publicCheckpoint,
   };
   const connect: ConnectEvidenceAnchor = (url, contract, abi) => {
     expect(url).toBe(rpcUrl);
@@ -96,11 +115,32 @@ function fixture() {
     return {
       getNetwork: async () => ({ chainId: 15000n }),
       read: async (method, hash) => {
-        expect(hash).toBe(evidence.commitmentHash);
-        return method === 'isBatchAnchored' ? true : [
-          commitment.sourceId, commitment.sequenceStart, commitment.sequenceEnd, commitment.leafCount,
-          commitment.merkleRoot, commitment.previousCheckpointHash
-        ];
+        if (method === 'getSource') {
+          expect(hash).toBe(commitment.sourceId);
+          return [
+            trusted.signer, true, false, commitment.sequenceEnd,
+            evidence.commitmentHash, 1n
+          ];
+        }
+        if (method === 'isBatchAnchored') {
+          expect(hash).toBe(evidence.commitmentHash);
+          return true;
+        }
+        if (method === 'getLatest') {
+          expect(hash).toBe(commitment.sourceId);
+          return [[
+            commitment.sourceId, commitment.sequenceStart, commitment.sequenceEnd, commitment.leafCount,
+            commitment.merkleRoot, commitment.previousCheckpointHash
+          ], evidence.commitmentHash];
+        }
+        if (method === 'getBatch') {
+          expect(hash).toBe(evidence.commitmentHash);
+          return [
+            commitment.sourceId, commitment.sequenceStart, commitment.sequenceEnd, commitment.leafCount,
+            commitment.merkleRoot, commitment.previousCheckpointHash
+          ];
+        }
+        throw new Error(`Unexpected RPC method: ${method}`);
       }
     };
   };
@@ -113,7 +153,8 @@ describe('normalized evidence verification', () => {
     const result = await verifyEvidence(evidence, { ...options, trusted, connect });
     expect(result.status).toBe('VERIFIED');
     expect(result.stages.map(({ stage }) => stage)).toEqual([
-      'bundle-parsing', 'raw-byte-validation', 'commitment-matching', 'merkle-verification', 'vault-signature', 'direct-rpc'
+      'bundle-parsing', 'raw-byte-validation', 'commitment-matching', 'merkle-verification',
+      'public-checkpoint-verification', 'vault-signature', 'direct-rpc'
     ]);
     expect(result.stages[0]).not.toHaveProperty('bundle');
   });
@@ -144,6 +185,14 @@ describe('normalized evidence verification', () => {
     });
   });
 
+  it('returns UNVERIFIABLE when Merkle proof material is missing', async () => {
+    const { evidence, trusted } = fixture();
+    evidence.events[0].siblings = [];
+    await expect(verifyEvidence(evidence, { ...options, trusted })).resolves.toMatchObject({
+      status: 'UNVERIFIABLE', reasonCode: 'REQUIRED_EVIDENCE_MISSING'
+    });
+  });
+
   it('detects an invalid Vault signature', async () => {
     const { evidence, trusted } = fixture();
     evidence.signature = '0x' + '00'.repeat(65);
@@ -156,6 +205,27 @@ describe('normalized evidence verification', () => {
     const { evidence, trusted } = fixture();
     await expect(verifyEvidence(evidence, { ...options, trusted: { ...trusted, signer: '' } })).resolves.toMatchObject({
       status: 'UNVERIFIABLE', reasonCode: 'TRUSTED_CONFIG_MISSING'
+    });
+  });
+
+  it('requires source registration before trusting a configured signer', async () => {
+    const { evidence, trusted } = fixture();
+    const connect: ConnectEvidenceAnchor = () => ({
+      getNetwork: async () => ({ chainId: 15000n }),
+      read: async (method) => method === 'getSource'
+        ? [trusted.signer, false, false, 0n, '0x' + '00'.repeat(32), 0n]
+        : []
+    });
+    await expect(verifyEvidence(evidence, { ...options, trusted, connect })).resolves.toMatchObject({
+      status: 'UNVERIFIABLE', reasonCode: 'CONTRACT_LOOKUP_UNAVAILABLE'
+    });
+  });
+
+  it('rejects a public checkpoint digest that does not link the raw Merkle evidence', async () => {
+    const { evidence, trusted } = fixture();
+    evidence.publicCheckpoint!.latestBatchRoot = '0x' + '44'.repeat(32);
+    await expect(verifyEvidence(evidence, { ...options, trusted })).resolves.toMatchObject({
+      status: 'TAMPERED', reasonCode: 'COMMITMENT_MISMATCH'
     });
   });
 
@@ -178,6 +248,35 @@ describe('normalized evidence verification', () => {
     });
     await expect(verifyEvidence(evidence, { ...options, trusted, connect })).resolves.toMatchObject({
       status: 'UNVERIFIABLE', reasonCode: 'RPC_RESPONSE_INVALID'
+    });
+  });
+
+  it('returns TAMPERED when the on-chain commitment differs', async () => {
+    const { evidence, trusted } = fixture();
+    const mismatched = { ...evidence.commitment, merkleRoot: '0x' + '11'.repeat(32) };
+    const connect: ConnectEvidenceAnchor = () => ({
+      getNetwork: async () => ({ chainId: 15000n }),
+      read: async (method, hash) => {
+        if (method === 'getSource') {
+          return [trusted.signer, true, false, mismatched.sequenceEnd,
+            evidence.commitmentHash, 1n];
+        }
+        if (method === 'isBatchAnchored') return true;
+        if (method === 'getLatest') {
+          return [[mismatched.sourceId, mismatched.sequenceStart, mismatched.sequenceEnd,
+            mismatched.leafCount, mismatched.merkleRoot, mismatched.previousCheckpointHash],
+          evidence.commitmentHash];
+        }
+        if (method === 'getBatch') {
+          expect(hash).toBe(evidence.commitmentHash);
+          return [mismatched.sourceId, mismatched.sequenceStart, mismatched.sequenceEnd,
+            mismatched.leafCount, mismatched.merkleRoot, mismatched.previousCheckpointHash];
+        }
+        throw new Error(`Unexpected RPC method: ${method}`);
+      }
+    });
+    await expect(verifyEvidence(evidence, { ...options, trusted, connect })).resolves.toMatchObject({
+      status: 'TAMPERED', reasonCode: 'COMMITMENT_MISMATCH'
     });
   });
 
