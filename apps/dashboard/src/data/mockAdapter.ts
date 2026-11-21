@@ -1,98 +1,170 @@
-import type { Checkpoint, EvidenceEvent, DashboardAdapter, VerificationWitness } from '../types';
+import type {
+  Checkpoint,
+  CollectionGap,
+  DashboardAdapter,
+  EvidenceEvent,
+  ProposedCorrelationStatus,
+  VerificationSnapshot,
+} from '../types';
+import { eventIdentity, mergeEvidenceEvents } from './eventOrdering';
 
-const events: EvidenceEvent[] = [
-  {
-    id: 'evt-000184',
-    sourceId: 'host-lab-01',
-    streamId: 'agent',
-    hostTimestamp: '2026-11-20T10:42:12Z',
-    vaultReceivedAt: '2026-11-20T10:42:13Z',
-    vaultSequence: 184,
-    payloadHash: '7f9a…d144',
-    evidenceState: 'anchored-server-reported',
-    correlationStatus: 'MATCHED',
-    checkpointId: 'batch-2026-11-20-04',
-    rawPreview: 'sshd[421]: Failed password for audit from 10.0.0.42'
-  },
-  {
-    id: 'evt-000185',
-    sourceId: 'host-lab-01',
-    streamId: 'rsyslog',
-    hostTimestamp: '2026-11-20T10:42:14Z',
-    vaultReceivedAt: '2026-11-20T10:42:15Z',
-    vaultSequence: 185,
-    payloadHash: 'c381…2a99',
-    evidenceState: 'tampered',
-    correlationStatus: 'MATCHED',
-    checkpointId: 'batch-2026-11-20-04',
-    rawPreview: 'sshd[421]: Accepted publickey for audit from 10.0.0.42'
-  },
-  {
-    id: 'evt-000186',
-    sourceId: 'host-lab-01',
-    streamId: 'agent',
-    vaultReceivedAt: '2026-11-20T10:43:03Z',
-    vaultSequence: 186,
-    payloadHash: 'ea27…11bf',
-    evidenceState: 'pending',
-    correlationStatus: 'AGENT_ONLY'
-  }
-];
+function demoEvent(
+  sourceId: string,
+  vaultSequence: number,
+  observationSource: EvidenceEvent['observationSource'],
+  fileIdentity: string,
+  byteOffset: number,
+  observedAt: string,
+  vaultReceivedAt: string,
+  rawEventLength: number,
+  vaultPersistenceStatus: EvidenceEvent['vaultPersistenceStatus'],
+  correlationStatus: ProposedCorrelationStatus,
+  demo?: EvidenceEvent['demo'],
+): EvidenceEvent {
+  return {
+    eventId: eventIdentity(sourceId, vaultSequence),
+    sourceId,
+    vaultSequence,
+    streamId: 'auth.log',
+    observationSource,
+    fileIdentity,
+    byteOffset,
+    observedAt,
+    vaultReceivedAt,
+    rawEventLength: demo?.rawPreview
+      ? new TextEncoder().encode(demo.rawPreview).length
+      : rawEventLength,
+    vaultPersistenceStatus,
+    correlationStatus,
+    demo,
+  };
+}
+
+const events = mergeEvidenceEvents([], [
+  demoEvent(
+    'host-lab-01',
+    184,
+    'host-agent',
+    'file-auth-log-01',
+    8912,
+    '2026-11-20T10:43:02Z',
+    '2026-11-20T10:43:03Z',
+    0,
+    'VAULT_PERSISTED',
+    'MATCHED',
+    {
+      payloadHash: 'sha256:5c84f2...a19d',
+      rawPreview: 'Nov 20 10:43:02 auth-gateway sshd[812]: Accepted publickey for service.deploy',
+      batchId: 'batch-04',
+    },
+  ),
+  demoEvent(
+    'host-lab-01',
+    185,
+    'rsyslog-tcp',
+    'file-auth-log-01',
+    8998,
+    '2026-11-20T10:43:07Z',
+    '2026-11-20T10:43:08Z',
+    0,
+    'VAULT_PERSISTED',
+    'MATCHED',
+    {
+      payloadHash: 'sha256:9a1f2c...7b3e',
+      rawPreview: 'Nov 20 10:43:07 auth-gateway sshd[815]: Failed password for operator from 10.1.4.22',
+      batchId: 'batch-04',
+      hostComparison: 'DIFFERENT',
+    },
+  ),
+  demoEvent(
+    'host-lab-01',
+    186,
+    'host-agent',
+    'file-auth-log-01',
+    9112,
+    '2026-11-20T10:43:12Z',
+    '2026-11-20T10:43:13Z',
+    126,
+    'PENDING',
+    'PENDING',
+  ),
+  demoEvent(
+    'host-lab-02',
+    1,
+    'rsyslog-tcp',
+    'file-auth-log-02',
+    0,
+    '2026-11-20T10:44:01Z',
+    '2026-11-20T10:44:02Z',
+    0,
+    'VAULT_PERSISTED',
+    'MATCHED',
+    {
+      payloadHash: 'sha256:03ce72...dd18',
+      rawPreview: 'Nov 20 10:44:01 auth-gateway sshd[901]: Accepted publickey for service.readonly',
+    },
+  ),
+]);
 
 const checkpoints: Checkpoint[] = [
   {
-    id: 'batch-2026-11-20-04',
+    id: 'batch-04',
     sourceId: 'host-lab-01',
-    sequenceRange: '181–185',
-    merkleRoot: 'a28b…f991',
-    transactionHash: '0x18a4…f2d9',
-    blockReference: 'Quai Orchard Cyprus-1 · Chain ID 15000',
-    state: 'anchored-server-reported',
-    createdAt: '2026-11-20T10:42:20Z'
+    sequenceRange: '184–185',
+    merkleRoot: '0x8f4c2b9e...d71a',
+    transactionHash: '0x2a91e7c4...6b0f',
+    blockReference: 'Orchard block #218,491',
+    createdAt: '2026-11-20T10:44:12Z',
+    vaultPersistenceStatus: 'VAULT_PERSISTED',
+    localAnchorStatus: 'ANCHORED_SERVER_REPORTED',
+    publicAnchorStatus: 'ANCHORED_SERVER_REPORTED',
+    independentVerificationStatus: 'UNVERIFIABLE',
   },
-  {
-    id: 'batch-2026-11-20-05',
-    sourceId: 'host-lab-01',
-    sequenceRange: '186–186',
-    merkleRoot: 'ea27…11bf',
-    state: 'pending',
-    createdAt: '2026-11-20T10:43:03Z'
-  }
 ];
 
-const verification: VerificationWitness[] = [
-  {
-    witness: 'Host',
-    state: 'tampered',
-    summary: 'The host comparison differs from preserved evidence.',
+const verification: VerificationSnapshot = {
+  host: {
+    summary: 'A host comparison differs in this demo fixture.',
+    demoComparison: 'DIFFERENT',
     details: [
-      { label: 'Comparison input', value: 'available' },
-      { label: 'Affected sequence', value: '185' }
-    ]
+      { label: 'Compared event', value: 'host-lab-01:185' },
+      { label: 'Comparison source', value: 'Simulated fixture only' },
+    ],
   },
-  {
-    witness: 'Vault',
-    state: 'pending',
-    summary: 'Preserved bytes are available in the demo data set.',
+  vault: {
+    summary: 'The fixture represents durable vault persistence.',
+    persistenceStatus: 'VAULT_PERSISTED',
     details: [
-      { label: 'Vault sequence', value: '185' },
-      { label: 'Payload hash', value: 'c381…2a99' }
-    ]
+      { label: 'Persistence record', value: 'batch-04' },
+      { label: 'Raw evidence', value: 'Not included in metadata response' },
+    ],
   },
-  {
-    witness: 'Blockchain',
-    state: 'anchored-server-reported',
-    summary: 'An API-reported checkpoint is present. Direct RPC is not connected.',
+  blockchain: {
+    summary: 'Reported anchoring and independent verification are separate.',
+    localAnchorStatus: 'ANCHORED_SERVER_REPORTED',
+    publicAnchorStatus: 'ANCHORED_SERVER_REPORTED',
+    independentVerificationStatus: 'UNVERIFIABLE',
     details: [
-      { label: 'Checkpoint', value: 'batch-2026-11-20-04' },
-      { label: 'RPC check', value: 'not performed' }
-    ]
-  }
+      { label: 'Public network', value: 'Quai Orchard Cyprus-1 · chain ID 15000' },
+      { label: 'Verification scope', value: 'Public-chain commitment; no direct RPC result loaded' },
+    ],
+  },
+};
+
+const collectionGaps: CollectionGap[] = [
+  {
+    sourceId: 'host-lab-01',
+    streamId: 'auth.log',
+    windowStart: '2026-11-20T10:42:00Z',
+    windowEnd: '2026-11-20T10:43:00Z',
+    status: 'COLLECTION_GAP',
+  },
 ];
 
-export const mockDashboardAdapter: DashboardAdapter = {
+export const mockAdapter: DashboardAdapter = {
   mode: 'demo',
-  getEvents: () => events,
-  getCheckpoints: () => checkpoints,
-  getVerification: () => verification
+  getEvents: () => [...events],
+  getCheckpoints: () => [...checkpoints],
+  getVerification: () => verification,
+  getCollectionGaps: () => [...collectionGaps],
 };

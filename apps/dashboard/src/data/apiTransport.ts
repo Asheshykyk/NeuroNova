@@ -20,14 +20,19 @@ export class ApiTransport {
   ): Promise<T> {
     const controller = new AbortController();
     const externalSignal = options.signal;
+    const { validate, ...requestOptions } = options;
     const abortFromExternal = () => controller.abort();
-    externalSignal?.addEventListener('abort', abortFromExternal, { once: true });
+    if (externalSignal?.aborted) {
+      abortFromExternal();
+    } else {
+      externalSignal?.addEventListener('abort', abortFromExternal, { once: true });
+    }
 
     const timeout = window.setTimeout(() => controller.abort(), this.config.timeoutMs);
 
     try {
       const response = await fetch(`${this.config.baseUrl.replace(/\/$/, '')}/${path.replace(/^\//, '')}`, {
-        ...options,
+        ...requestOptions,
         signal: controller.signal,
       });
 
@@ -36,7 +41,7 @@ export class ApiTransport {
       }
 
       const value: unknown = await response.json();
-      if (!options.validate(value)) {
+      if (!validate(value)) {
         throw new Error('API response failed type validation');
       }
       return value;

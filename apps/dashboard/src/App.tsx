@@ -1,76 +1,620 @@
-import { useState } from 'react';
+import { useState, type ReactNode } from 'react';
 import { Navigation } from './components/Navigation';
 import { StatusBadge } from './components/StatusBadge';
-import type { EvidenceEvent, ViewId } from './types';
-import { createDashboardDataSource } from './data/source';
-
-const dataSource = createDashboardDataSource();
-const adapter = dataSource.adapter;
-const isDemo = dataSource.mode === 'demo';
+import { createDashboardDataSource, type DashboardDataSource } from './data/source';
+import type { EvidenceEvent, StatusBadgeState, ViewId } from './types';
 
 function formatTime(value?: string) {
-  return value ? new Date(value).toLocaleString('en-GB', { timeZone: 'UTC', hour12: false }) + ' UTC' : 'Not supplied';
+  if (!value) return 'Not supplied';
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return 'Invalid timestamp';
+  return `${date.toLocaleString('en-GB', { timeZone: 'UTC', hour12: false })} UTC`;
 }
 
-function DemoTag() {
-  return <span className={isDemo ? 'demo-tag' : 'mode-tag live-tag'}>
-    {isDemo ? 'DEMO DATA' : 'LIVE BACKEND'}
-  </span>;
+function ModeTag({ mode }: { mode: DashboardDataSource['mode'] }) {
+  return mode === 'demo'
+    ? <span className="demo-tag">DEMO DATA</span>
+    : <span className="mode-tag pending-mode-tag">LIVE MODE · NOT CONNECTED</span>;
 }
 
-function Metric({ label, value, note }: { label: string; value: string; note: string }) {
-  return <article className="metric-card"><p>{label}</p><strong>{value}</strong><small>{note}</small><DemoTag /></article>;
+function PageHeading({
+  mode,
+  title,
+  kicker,
+  description,
+  state,
+}: {
+  mode: DashboardDataSource['mode'];
+  title: string;
+  kicker: string;
+  description: string;
+  state: StatusBadgeState;
+}) {
+  return (
+    <header className="page-heading">
+      <div>
+        <p className="eyebrow">{kicker} <ModeTag mode={mode} /></p>
+        <h1>{title}</h1>
+        <p>{description}</p>
+      </div>
+      <StatusBadge state={state} />
+    </header>
+  );
 }
 
-function EventTable({ events, onSelect }: { events: EvidenceEvent[]; onSelect?: (event: EvidenceEvent) => void }) {
-  return <div className="table-wrap"><table><thead><tr><th>Sequence</th><th>Source / stream</th><th>Vault receipt</th><th>Evidence</th><th>State</th></tr></thead><tbody>
-    {events.map((event) => <tr key={event.id} onClick={() => onSelect?.(event)} className={onSelect ? 'selectable' : ''}>
-      <td><b>#{event.vaultSequence}</b><small>{event.id}</small></td><td>{event.sourceId}<small>{event.streamId} · {event.correlationStatus}</small></td><td>{formatTime(event.vaultReceivedAt)}</td><td className="mono">{event.payloadHash}</td><td><StatusBadge state={event.evidenceState} /></td>
-    </tr>)}
-  </tbody></table></div>;
+function StatePanel({
+  state,
+  title,
+  children,
+}: {
+  state: 'empty' | 'error' | 'disconnected' | 'stale' | 'loading';
+  title: string;
+  children: ReactNode;
+}) {
+  return (
+    <article className={`empty-state state-panel state-panel-${state}`} role="status">
+      <StatusBadge state={state} />
+      <b>{title}</b>
+      <div>{children}</div>
+    </article>
+  );
 }
 
-function Overview({ onNavigate }: { onNavigate: (view: ViewId) => void }) {
-  const events = adapter.getEvents();
-  return <section className="page"><header className="page-heading"><div><p className="eyebrow">Operational picture <DemoTag /></p><h1>Security evidence at a glance</h1><p>{isDemo ? 'Mock data only. Backend, WebSocket, and independent RPC verification are not connected.' : 'Live mode: approved backend configuration is missing or schemas remain unapproved.'}</p></div><StatusBadge state="disconnected" /></header>
-    <div className="metric-grid"><Metric label="Vault observations" value="186" note="Demo sequence high-water mark" /><Metric label="Anchored batches" value="1" note="API-reported checkpoint" /><Metric label="Open integrity findings" value="1" note="Host comparison mismatch" /><Metric label="Collection gaps" value="1" note="Demo heartbeat scenario" /></div>
-    <div className="two-col"><article className="panel"><div className="panel-heading"><div><p className="eyebrow">Latest evidence</p><h2>Vault-received observations</h2></div><button className="text-button" onClick={() => onNavigate('live-feed')}>View feed</button></div><EventTable events={events.slice(0, 2)} /></article>
-    <article className="panel boundary"><p className="eyebrow">Evidence boundary</p><h2>What this view can say</h2><p>It presents demo observations. A checkpoint reference is not independent verification until a future auditor performs a direct RPC lookup.</p><button className="text-button" onClick={() => onNavigate('verification')}>Inspect witnesses</button></article></div>
-  </section>;
+function LiveUnavailable({ source }: { source: Extract<DashboardDataSource, { mode: 'live' }> }) {
+  const state = source.adapter.getLiveState();
+  return (
+    <StatePanel
+      state={state.viewState}
+      title={state.configError ? 'Live backend is not configured' : 'Live read contracts are pending'}
+    >
+      <p>{state.configError ?? state.contractError}</p>
+      <p>
+        Transport: {state.transportState}. Proposed WebSocket target {state.proposedWebSocketPath};
+        no connection or data replay is active.
+      </p>
+    </StatePanel>
+  );
 }
 
-function LiveFeed() {
-  const liveState = 'liveState' in adapter ? adapter.liveState() : undefined;
-  return <section className="page"><header className="page-heading"><div><p className="eyebrow">Live transport <DemoTag /></p><h1>Live evidence feed</h1><p>{isDemo ? 'Feed is disconnected because demo mode has no WebSocket integration.' : 'Backend transport is unavailable until approved live schemas are configured.'}</p></div><StatusBadge state={isDemo ? 'disconnected' : 'disconnected'} /></header><article className="panel"><div className="callout"><b>{isDemo ? 'Stale-safe display' : 'Live backend configuration'}</b><span>{isDemo ? 'Rendered events are static mock records. Receipt and anchor claims require the future vault API contract.' : liveState?.configError ?? liveState?.contractError}</span></div>{isDemo ? <EventTable events={adapter.getEvents()} /> : <div className="empty-state"><b>EMPTY</b><span>No live records are available because the approved read mapping is not configured.</span></div>}</article></section>;
+function Metric({ mode, label, value, note }: {
+  mode: DashboardDataSource['mode'];
+  label: string;
+  value: string;
+  note: string;
+}) {
+  return (
+    <article className="metric-card">
+      <p>{label}</p>
+      <strong>{value}</strong>
+      <small>{note}</small>
+      <ModeTag mode={mode} />
+    </article>
+  );
 }
 
-function Verification() {
-  return <section className="page"><header className="page-heading"><div><p className="eyebrow">Witness comparison <DemoTag /></p><h1>Host / Vault / Blockchain</h1><p>The blockchain card is deliberately not marked independently verified.</p></div><StatusBadge state="tampered" /></header><div className="witness-grid">{adapter.getVerification().map((item) => <article className="witness-card" key={item.witness}><div className="panel-heading"><h2>{item.witness}</h2><StatusBadge state={item.state} /></div><p>{item.summary}</p><dl>{item.details.map((detail) => <div key={detail.label}><dt>{detail.label}</dt><dd className="mono">{detail.value ?? 'Not supplied'}</dd></div>)}</dl><DemoTag /></article>)}</div><article className="panel conclusion"><p className="eyebrow">Current conclusion</p><h2>Host mismatch detected in demo data</h2><p>Preserved evidence and checkpoint material are shown for investigation. No direct RPC query has been performed, so this dashboard makes no independent blockchain-verification claim.</p></article></section>;
+function EventTable({
+  events,
+  mode,
+  onSelect,
+}: {
+  events: EvidenceEvent[];
+  mode: DashboardDataSource['mode'];
+  onSelect?: (event: EvidenceEvent) => void;
+}) {
+  if (events.length === 0) {
+    return (
+      <StatePanel state="empty" title="No event metadata">
+        No event metadata has been returned for this view.
+      </StatePanel>
+    );
+  }
+
+  return (
+    <div className="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Source-local event</th>
+            <th>Stream / observation</th>
+            <th>Observed at</th>
+            <th>Vault received</th>
+            <th>Persistence</th>
+          </tr>
+        </thead>
+        <tbody>
+          {events.map((event) => (
+            <tr
+              key={event.eventId}
+              onClick={() => onSelect?.(event)}
+              className={onSelect ? 'selectable' : ''}
+            >
+              <td>
+                <b>#{event.vaultSequence}</b>
+                <small className="mono">{event.eventId}</small>
+                <small>{event.sourceId}</small>
+              </td>
+              <td>
+                {event.streamId}
+                <small>{event.observationSource} · {event.correlationStatus}</small>
+              </td>
+              <td>{formatTime(event.observedAt)}</td>
+              <td>{formatTime(event.vaultReceivedAt)}</td>
+              <td><StatusBadge state={event.vaultPersistenceStatus} /></td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+      <p className="table-footnote">
+        {mode === 'demo' ? 'Static fixture data; not a live feed.' : 'No live records are rendered.'}
+      </p>
+    </div>
+  );
 }
 
-function Explorer() {
-  const [selected, setSelected] = useState(adapter.getEvents()[1]);
-  return <section className="page"><header className="page-heading"><div><p className="eyebrow">Evidence inspection <DemoTag /></p><h1>Evidence explorer</h1><p>Raw content preview is supplied only by mock data and is not a vault read.</p></div><StatusBadge state={selected.evidenceState} /></header><div className="explorer-grid"><article className="panel"><p className="eyebrow">Available records</p>{adapter.getEvents().map((event) => <button className={`record ${event.id === selected.id ? 'selected' : ''}`} onClick={() => setSelected(event)} key={event.id}><span><b>#{event.vaultSequence}</b><small>{event.sourceId} · {event.streamId}</small></span><StatusBadge state={event.evidenceState} /></button>)}</article><article className="panel detail"><p className="eyebrow">Selected record <DemoTag /></p><h2>{selected.id}</h2><dl><div><dt>Vault sequence</dt><dd>#{selected.vaultSequence}</dd></div><div><dt>Evidence hash</dt><dd className="mono">{selected.payloadHash}</dd></div><div><dt>Host timestamp</dt><dd>{formatTime(selected.hostTimestamp)}</dd></div><div><dt>Checkpoint</dt><dd className="mono">{selected.checkpointId ?? 'Not batched'}</dd></div></dl><label>Mock raw-event preview<textarea readOnly value={selected.rawPreview ?? 'No raw preview supplied by this record.'} /></label></article></div></section>;
+function Overview({
+  source,
+  onNavigate,
+}: {
+  source: DashboardDataSource;
+  onNavigate: (view: ViewId) => void;
+}) {
+  const events = source.adapter.getEvents();
+  const checkpoints = source.adapter.getCheckpoints();
+  const gaps = source.adapter.getCollectionGaps();
+  const demo = source.mode === 'demo';
+  const metrics = [
+    {
+      label: 'Vault-persisted events',
+      value: demo ? String(events.filter((event) => event.vaultPersistenceStatus === 'VAULT_PERSISTED').length) : '—',
+      note: demo ? 'Fixture records only' : 'Read API not implemented',
+    },
+    {
+      label: 'Public anchor reports',
+      value: demo ? String(checkpoints.filter((item) => item.publicAnchorStatus === 'ANCHORED_SERVER_REPORTED').length) : '—',
+      note: demo ? 'Server-reported status; not RPC verified' : 'Read API not implemented',
+    },
+    {
+      label: 'RPC-verified commitments',
+      value: demo ? String(checkpoints.filter((item) => item.independentVerificationStatus === 'RPC_VERIFIED').length) : '—',
+      note: demo ? 'No independent result in this fixture' : 'No live verification result',
+    },
+    {
+      label: 'Collection gaps',
+      value: demo ? String(gaps.length) : '—',
+      note: demo ? 'Separate from evidence integrity' : 'Read API not implemented',
+    },
+  ];
+
+  return (
+    <section className="page">
+      <PageHeading
+        mode={source.mode}
+        kicker="Operational picture"
+        title="Security evidence at a glance"
+        description={demo
+          ? 'All displayed records and statuses are DEMO fixtures. No backend, WebSocket, or direct RPC result is connected.'
+          : 'Live mode is selected, but read APIs and WebSocket contracts are not implemented or mapped.'}
+        state={source.mode === 'demo' ? 'disconnected' : source.adapter.getLiveState().viewState}
+      />
+      <div className="metric-grid">
+        {metrics.map((metric) => (
+          <Metric key={metric.label} mode={source.mode} {...metric} />
+        ))}
+      </div>
+      <div className="two-col">
+        <article className="panel">
+          <div className="panel-heading">
+            <div><p className="eyebrow">Latest evidence</p><h2>Event metadata</h2></div>
+            <button className="text-button" onClick={() => onNavigate('live-feed')}>View feed</button>
+          </div>
+          {demo
+            ? <EventTable events={events.slice(0, 4)} mode={source.mode} />
+            : <LiveUnavailable source={source} />}
+        </article>
+        <article className="panel boundary">
+          <p className="eyebrow">Evidence boundary</p>
+          <h2>What this view can say</h2>
+          <p>
+            A server-reported anchor is not an independent RPC result. Missing chain proof is
+            not a tampering finding, and an event-level Auditor result is distinct from
+            checkpoint commitment verification.
+          </p>
+          <button className="text-button" onClick={() => onNavigate('verification')}>
+            Inspect status dimensions
+          </button>
+        </article>
+      </div>
+    </section>
+  );
 }
 
-function Recovery() {
-  return <section className="page"><header className="page-heading"><div><p className="eyebrow">Recovery & continuity <DemoTag /></p><h1>Preservation after host change</h1><p>Recovery is possible only for records already preserved by the vault.</p></div><StatusBadge state="stale" /></header><div className="two-col"><article className="panel recovery-card"><p className="eyebrow">Affected record</p><h2>Sequence #185</h2><StatusBadge state="tampered" /><p>Mock host comparison reports a difference. The dashboard retains a separate vault-evidence panel for investigator review.</p><dl><div><dt>Vault evidence</dt><dd>Demo record available</dd></div><div><dt>Collection meaning</dt><dd>Does not prove what happened before collection</dd></div></dl></article><article className="panel boundary"><p className="eyebrow">Heartbeat gap</p><h2>Observability interruption</h2><p>Mock agent liveness data is stale. This indicates an unobserved interval, not a claim about which events occurred in it.</p><StatusBadge state="stale" /></article></div></section>;
+function LiveFeed({ source }: { source: DashboardDataSource }) {
+  return (
+    <section className="page">
+      <PageHeading
+        mode={source.mode}
+        kicker="Live transport"
+        title="Live evidence feed"
+        description={source.mode === 'demo'
+          ? 'The feed is disconnected in demo mode; records below are static fixtures.'
+          : 'The WebSocket server and read APIs are not implemented. No live notifications are shown.'}
+        state={source.mode === 'demo' ? 'disconnected' : source.adapter.getLiveState().viewState}
+      />
+      {source.mode === 'live'
+        ? <LiveUnavailable source={source} />
+        : (
+          <>
+            <StatePanel state="disconnected" title="DEMO feed is not a live stream">
+              <p>Proposed target /api/v1/ws is not connected.</p>
+              <p>No event.persisted notifications are fabricated from fixture data.</p>
+            </StatePanel>
+            <article className="panel">
+              <p className="eyebrow">Static fixture records</p>
+              <EventTable events={source.adapter.getEvents()} mode={source.mode} />
+            </article>
+          </>
+        )}
+    </section>
+  );
 }
 
-function Checkpoints() {
-  return <section className="page"><header className="page-heading"><div><p className="eyebrow">Blockchain commitments <DemoTag /></p><h1>Checkpoint status</h1><p>On-chain raw logs are never displayed because checkpoints carry commitment metadata only.</p></div><StatusBadge state="anchored-server-reported" /></header><article className="panel"><div className="callout"><b>Independent verification pending</b><span>Quai Orchard Cyprus-1 · Chain ID 15000. Transaction and block fields are mock or API-reported values; direct RPC validation is required before VERIFIED.</span></div><div className="checkpoint-list">{adapter.getCheckpoints().map((checkpoint) => <article className="checkpoint" key={checkpoint.id}><div><p className="eyebrow">{checkpoint.id} <DemoTag /></p><h2>{checkpoint.sourceId} · {checkpoint.sequenceRange}</h2><p className="mono">Root {checkpoint.merkleRoot}</p></div><div><StatusBadge state={checkpoint.state} /><p className="mono">{checkpoint.transactionHash ?? 'No transaction hash supplied'}</p><small>{checkpoint.blockReference ?? 'Awaiting anchor · Quai Orchard Cyprus-1 (15000)'}</small></div></article>)}</div></article></section>;
+function WitnessCard({
+  title,
+  summary,
+  mode,
+  children,
+}: {
+  title: string;
+  summary: string;
+  mode: DashboardDataSource['mode'];
+  children: ReactNode;
+}) {
+  return (
+    <article className="witness-card">
+      <div className="panel-heading"><h2>{title}</h2><ModeTag mode={mode} /></div>
+      <p>{summary}</p>
+      {children}
+    </article>
+  );
 }
 
-function View({ activeView, onNavigate }: { activeView: ViewId; onNavigate: (view: ViewId) => void }) {
-  if (activeView === 'live-feed') return <LiveFeed />;
-  if (activeView === 'verification') return <Verification />;
-  if (activeView === 'explorer') return <Explorer />;
-  if (activeView === 'recovery') return <Recovery />;
-  if (activeView === 'checkpoints') return <Checkpoints />;
-  return <Overview onNavigate={onNavigate} />;
+function StatusDimension({ label, state }: { label: string; state: StatusBadgeState }) {
+  return (
+    <div className="status-dimension">
+      <span>{label}</span>
+      <StatusBadge state={state} />
+    </div>
+  );
 }
 
-export default function App() {
+function WitnessDetails({ details }: { details: Array<{ label: string; value?: string }> }) {
+  return (
+    <dl>
+      {details.map((detail) => (
+        <div key={detail.label}>
+          <dt>{detail.label}</dt>
+          <dd className="mono">{detail.value ?? 'Not supplied'}</dd>
+        </div>
+      ))}
+    </dl>
+  );
+}
+
+function Verification({ source }: { source: DashboardDataSource }) {
+  const snapshot = source.adapter.getVerification();
+  if (!snapshot) {
+    return (
+      <section className="page">
+        <PageHeading
+          mode={source.mode}
+          kicker="Witness comparison"
+          title="Host / Vault / Blockchain"
+          description="No live verification response schema is available."
+          state={source.mode === 'live' ? source.adapter.getLiveState().viewState : 'empty'}
+        />
+        {source.mode === 'live'
+          ? <LiveUnavailable source={source} />
+          : <StatePanel state="empty" title="No verification snapshot">No fixture snapshot is available.</StatePanel>}
+      </section>
+    );
+  }
+
+  return (
+    <section className="page">
+      <PageHeading
+        mode={source.mode}
+        kicker="Witness comparison"
+        title="Host / Vault / Blockchain"
+        description="Persistence, anchoring, and independent verification are separate status dimensions."
+        state="disconnected"
+      />
+      <div className="witness-grid">
+        <WitnessCard title="Host comparison" summary={snapshot.host.summary} mode={source.mode}>
+          {snapshot.host.demoComparison && (
+            <p className="demo-outcome">DEMO comparison differs; this is not an Auditor CLI result.</p>
+          )}
+          <WitnessDetails details={snapshot.host.details} />
+        </WitnessCard>
+        <WitnessCard title="Vault persistence" summary={snapshot.vault.summary} mode={source.mode}>
+          <StatusDimension label="Vault persistence" state={snapshot.vault.persistenceStatus} />
+          <WitnessDetails details={snapshot.vault.details} />
+        </WitnessCard>
+        <WitnessCard title="Blockchain" summary={snapshot.blockchain.summary} mode={source.mode}>
+          <div className="status-dimensions">
+            <StatusDimension label="Local Hardhat anchoring" state={snapshot.blockchain.localAnchorStatus} />
+            <StatusDimension label="Public Quai anchoring" state={snapshot.blockchain.publicAnchorStatus} />
+            <StatusDimension label="Independent chain verification" state={snapshot.blockchain.independentVerificationStatus} />
+          </div>
+          <WitnessDetails details={snapshot.blockchain.details} />
+        </WitnessCard>
+      </div>
+      <article className="panel conclusion">
+        <p className="eyebrow">Auditor CLI boundary</p>
+        <h2>No Auditor CLI result is loaded</h2>
+        <p>
+          This demo comparison did not run the verifier. UNVERIFIABLE means no integrity
+          verdict; only an actual independent verification may produce an Auditor CLI outcome.
+        </p>
+      </article>
+    </section>
+  );
+}
+
+function Explorer({ source }: { source: DashboardDataSource }) {
+  const events = source.adapter.getEvents();
+  const [selectedEventId, setSelectedEventId] = useState(
+    () => events.find((event) => event.demo?.hostComparison)?.eventId ?? events[0]?.eventId,
+  );
+  const selected = events.find((event) => event.eventId === selectedEventId);
+
+  if (!selected) {
+    return (
+      <section className="page">
+        <PageHeading
+          mode={source.mode}
+          kicker="Evidence inspection"
+          title="Evidence explorer"
+          description="Raw evidence is not part of event metadata responses."
+          state={source.mode === 'live' ? source.adapter.getLiveState().viewState : 'empty'}
+        />
+        {source.mode === 'live'
+          ? <LiveUnavailable source={source} />
+          : <StatePanel state="empty" title="No event metadata">No fixture records are available.</StatePanel>}
+      </section>
+    );
+  }
+
+  return (
+    <section className="page">
+      <PageHeading
+        mode={source.mode}
+        kicker="Evidence inspection"
+        title="Evidence explorer"
+        description="Event metadata and raw evidence are separate. Any preview below is fixture-only."
+        state="disconnected"
+      />
+      <div className="explorer-grid">
+        <article className="panel">
+          <p className="eyebrow">Available records <ModeTag mode={source.mode} /></p>
+          {events.map((event) => (
+            <button
+              className={`record ${event.eventId === selected.eventId ? 'selected' : ''}`}
+              onClick={() => setSelectedEventId(event.eventId)}
+              key={event.eventId}
+              aria-pressed={event.eventId === selected.eventId}
+            >
+              <span>
+                <b>#{event.vaultSequence}</b>
+                <small>{event.eventId} · {event.streamId}</small>
+                <small>{event.observationSource}</small>
+              </span>
+              <StatusBadge state={event.vaultPersistenceStatus} />
+            </button>
+          ))}
+        </article>
+        <article className="panel detail">
+          <p className="eyebrow">Selected event metadata <ModeTag mode={source.mode} /></p>
+          <h2 className="mono">{selected.eventId}</h2>
+          <dl>
+            <div><dt>Source ID</dt><dd className="mono">{selected.sourceId}</dd></div>
+            <div><dt>Source-local vault sequence</dt><dd>#{selected.vaultSequence}</dd></div>
+            <div><dt>Stream</dt><dd>{selected.streamId}</dd></div>
+            <div><dt>Observation source</dt><dd>{selected.observationSource}</dd></div>
+            <div><dt>File identity (location only)</dt><dd className="mono">{selected.fileIdentity}</dd></div>
+            <div><dt>Byte offset (location only)</dt><dd>{selected.byteOffset}</dd></div>
+            <div><dt>Observed at</dt><dd>{formatTime(selected.observedAt)}</dd></div>
+            <div><dt>Vault received at</dt><dd>{formatTime(selected.vaultReceivedAt)}</dd></div>
+            <div><dt>Raw event length</dt><dd>{selected.rawEventLength} bytes</dd></div>
+            <div><dt>Vault persistence</dt><dd><StatusBadge state={selected.vaultPersistenceStatus} /></dd></div>
+            <div><dt>Correlation</dt><dd>{selected.correlationStatus}</dd></div>
+          </dl>
+          {source.mode === 'demo' && selected.demo && (
+            <div className="fixture-evidence">
+              <p className="eyebrow">DEMO-ONLY fixture detail</p>
+              <p className="mono">Payload hash: {selected.demo.payloadHash ?? 'Not supplied'}</p>
+              <label>
+                Simulated raw-event preview; not returned by metadata
+                <textarea readOnly value={selected.demo.rawPreview ?? 'No demo preview supplied.'} />
+              </label>
+            </div>
+          )}
+        </article>
+      </div>
+    </section>
+  );
+}
+
+function Recovery({ source }: { source: DashboardDataSource }) {
+  if (source.mode === 'live') {
+    return (
+      <section className="page">
+        <PageHeading
+          mode={source.mode}
+          kicker="Recovery & continuity"
+          title="Preservation after host change"
+          description="Collection-gap data is not connected."
+          state={source.adapter.getLiveState().viewState}
+        />
+        <LiveUnavailable source={source} />
+      </section>
+    );
+  }
+
+  const gaps = source.adapter.getCollectionGaps();
+  const affectedEvent = source.adapter.getEvents().find((event) => event.demo?.hostComparison);
+  return (
+    <section className="page">
+      <PageHeading
+        mode={source.mode}
+        kicker="Recovery & continuity"
+        title="Preservation after host change"
+        description="A collection gap is separate from persistence and does not establish tampering."
+        state="disconnected"
+      />
+      {gaps.length === 0 ? (
+        <StatePanel state="empty" title="No collection gaps">No gap fixture is available.</StatePanel>
+      ) : (
+        <div className="two-col">
+          <article className="panel recovery-card">
+            <p className="eyebrow">Affected demo event</p>
+            <h2>{affectedEvent?.eventId ?? 'No related event metadata'}</h2>
+            <p>A host comparison difference is shown only as a demo scenario, not as an Auditor result.</p>
+            <StatusDimension
+              label="Vault persistence"
+              state={affectedEvent?.vaultPersistenceStatus ?? 'PENDING'}
+            />
+            <dl>
+              <div><dt>Source-local sequence</dt><dd>{affectedEvent?.vaultSequence ?? 'Not supplied'}</dd></div>
+              <div><dt>Collection meaning</dt><dd>Does not prove what happened before collection</dd></div>
+            </dl>
+          </article>
+          <article className="panel boundary">
+            <p className="eyebrow">Collection gap</p>
+            <h2><StatusBadge state={gaps[0].status} /></h2>
+            <p>{gaps[0].sourceId} · {gaps[0].streamId}</p>
+            <p>{formatTime(gaps[0].windowStart)} to {formatTime(gaps[0].windowEnd)}</p>
+            <p>A gap indicates an unobserved interval; it does not prove which events occurred.</p>
+          </article>
+        </div>
+      )}
+    </section>
+  );
+}
+
+function Checkpoints({ source }: { source: DashboardDataSource }) {
+  if (source.mode === 'live') {
+    return (
+      <section className="page">
+        <PageHeading
+          mode={source.mode}
+          kicker="Blockchain commitments"
+          title="Checkpoint status"
+          description="Checkpoint read APIs are not implemented."
+          state={source.adapter.getLiveState().viewState}
+        />
+        <LiveUnavailable source={source} />
+      </section>
+    );
+  }
+
+  const checkpoints = source.adapter.getCheckpoints();
+  return (
+    <section className="page">
+      <PageHeading
+        mode={source.mode}
+        kicker="Blockchain commitments"
+        title="Checkpoint status"
+        description="Checkpoint metadata does not contain original raw logs. Demo values are not live chain observations."
+        state={checkpoints[0]?.independentVerificationStatus ?? 'empty'}
+      />
+      <article className="panel">
+        <div className="callout">
+          <b>Quai Orchard Cyprus-1 · Chain ID 15000</b>
+          <span>
+            ANCHORED_SERVER_REPORTED is not independent verification. RPC_VERIFIED applies
+            only to an independently checked public-chain commitment.
+          </span>
+        </div>
+        {checkpoints.length === 0 ? (
+          <StatePanel state="empty" title="No checkpoint metadata">No checkpoint fixture is available.</StatePanel>
+        ) : (
+          <div className="checkpoint-list">
+            {checkpoints.map((checkpoint) => (
+              <article className="checkpoint" key={checkpoint.id}>
+                <div>
+                  <p className="eyebrow">{checkpoint.id} <ModeTag mode={source.mode} /></p>
+                  <h2>{checkpoint.sourceId} · {checkpoint.sequenceRange}</h2>
+                  <p className="mono">Root {checkpoint.merkleRoot}</p>
+                  <small>Created at {formatTime(checkpoint.createdAt)}</small>
+                </div>
+                <div className="checkpoint-status">
+                  <StatusDimension label="Vault persistence" state={checkpoint.vaultPersistenceStatus} />
+                  <StatusDimension label="Local Hardhat anchoring" state={checkpoint.localAnchorStatus} />
+                  <StatusDimension label="Public Quai anchoring" state={checkpoint.publicAnchorStatus} />
+                  <StatusDimension label="Independent verification" state={checkpoint.independentVerificationStatus} />
+                  <p className="mono">{checkpoint.transactionHash ?? 'No transaction hash supplied'}</p>
+                  <small>{checkpoint.blockReference ?? 'No block reference supplied'}</small>
+                </div>
+              </article>
+            ))}
+          </div>
+        )}
+      </article>
+    </section>
+  );
+}
+
+function View({
+  activeView,
+  source,
+  onNavigate,
+}: {
+  activeView: ViewId;
+  source: DashboardDataSource;
+  onNavigate: (view: ViewId) => void;
+}) {
+  if (activeView === 'live-feed') return <LiveFeed source={source} />;
+  if (activeView === 'verification') return <Verification source={source} />;
+  if (activeView === 'explorer') return <Explorer source={source} />;
+  if (activeView === 'recovery') return <Recovery source={source} />;
+  if (activeView === 'checkpoints') return <Checkpoints source={source} />;
+  return <Overview source={source} onNavigate={onNavigate} />;
+}
+
+export default function App({
+  dataSource = createDashboardDataSource(),
+}: {
+  dataSource?: DashboardDataSource;
+} = {}) {
   const [activeView, setActiveView] = useState<ViewId>('overview');
-  return <div className="app-shell"><aside className="sidebar"><div className="brand"><span>TT</span><div><b>TRUSTTRACE</b><small>evidence console</small></div></div><Navigation activeView={activeView} onNavigate={setActiveView} /><div className="sidebar-footer"><DemoTag /><p>{isDemo ? 'Mock adapter active. No API, WebSocket, or RPC connection.' : 'Live backend selected. Approved contracts are not mapped.'}</p></div></aside><main><header className="topbar"><button className="source-select" aria-label="Selected source">host-lab-01 <span>⌄</span></button><div className="topbar-status"><span className="pulse" aria-hidden="true" /> {isDemo ? 'Demo mode · offline' : 'Live mode · backend unavailable'}</div></header><View activeView={activeView} onNavigate={setActiveView} /></main></div>;
+  const isDemo = dataSource.mode === 'demo';
+
+  return (
+    <div className="app-shell">
+      <aside className="sidebar">
+        <div className="brand">
+          <span>TT</span>
+          <div><b>TRUSTTRACE</b><small>evidence console</small></div>
+        </div>
+        <Navigation activeView={activeView} onNavigate={setActiveView} />
+        <div className="sidebar-footer">
+          <ModeTag mode={dataSource.mode} />
+          <p>{isDemo
+            ? 'Fixture data only. No API, WebSocket, or RPC connection.'
+            : 'Live mode selected; approved read contracts are not mapped.'}</p>
+        </div>
+      </aside>
+      <main>
+        <header className="topbar">
+          <span className="source-select">All sources</span>
+          <div className="topbar-status">
+            <span className="pulse" aria-hidden="true" />
+            {isDemo ? 'Demo fixtures · offline' : 'Live mode · not connected'}
+            <ModeTag mode={dataSource.mode} />
+          </div>
+        </header>
+        <View activeView={activeView} source={dataSource} onNavigate={setActiveView} />
+      </main>
+    </div>
+  );
 }

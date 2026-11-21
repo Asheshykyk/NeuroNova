@@ -1,27 +1,42 @@
 import { describe, expect, it } from 'vitest';
 import type { EvidenceEvent } from '../types';
-import { mergeEvidenceEvents } from './eventOrdering';
+import { eventIdentity, mergeEvidenceEvents } from './eventOrdering';
 
-function event(id: string, sequence: number): EvidenceEvent {
+function event(sourceId: string, sequence: number): EvidenceEvent {
   return {
-    id,
-    sourceId: 'host-lab-01',
-    streamId: 'agent',
+    eventId: eventIdentity(sourceId, sequence),
+    sourceId,
+    streamId: 'auth.log',
+    observationSource: 'host-agent',
+    fileIdentity: 'fixture-file',
+    byteOffset: 100,
+    observedAt: '2026-11-20T10:43:02Z',
     vaultReceivedAt: '2026-11-20T10:43:03Z',
+    rawEventLength: 42,
     vaultSequence: sequence,
-    payloadHash: `hash-${sequence}`,
-    evidenceState: 'pending',
+    vaultPersistenceStatus: 'VAULT_PERSISTED',
     correlationStatus: 'MATCHED',
+    demo: { rawPreview: 'same raw fixture bytes' },
   };
 }
 
-describe('event ordering and duplicate suppression', () => {
-  it('orders by source and vault sequence while suppressing duplicate IDs', () => {
+describe('source-local event identity and ordering', () => {
+  it('derives event identity from sourceId and vaultSequence', () => {
+    expect(eventIdentity('host-lab-01', 184)).toBe('host-lab-01:184');
+    expect(eventIdentity('host-lab-01', 1)).not.toBe(eventIdentity('host-lab-02', 1));
+  });
+
+  it('sorts by source and sequence without merging matching file offsets or bytes', () => {
     const merged = mergeEvidenceEvents(
-      [event('event-3', 3), event('event-1', 1)],
-      [event('event-1', 1), event('event-2', 2)],
+      [event('host-lab-01', 3), event('host-lab-01', 1)],
+      [event('host-lab-01', 1), event('host-lab-01', 2), event('host-lab-02', 1)],
     );
 
-    expect(merged.map(({ id }) => id)).toEqual(['event-1', 'event-2', 'event-3']);
+    expect(merged.map(({ eventId }) => eventId)).toEqual([
+      'host-lab-01:1',
+      'host-lab-01:2',
+      'host-lab-01:3',
+      'host-lab-02:1',
+    ]);
   });
 });

@@ -46,12 +46,32 @@ describe('ApiTransport', () => {
     await expect(pending).rejects.toBeInstanceOf(ApiCancellationError);
   });
 
+  it('cancels requests when the supplied signal was already aborted', async () => {
+    const controller = new AbortController();
+    controller.abort();
+    vi.stubGlobal('fetch', vi.fn((_url: string, init: RequestInit) =>
+      init.signal?.aborted
+        ? Promise.reject(new DOMException('Aborted', 'AbortError'))
+        : Promise.resolve({ ok: true, status: 200, json: async () => ({}) }),
+    ));
+    const transport = new ApiTransport({ baseUrl: 'https://api.example', timeoutMs: 100 });
+
+    await expect(transport.request('/approved-resource', {
+      signal: controller.signal,
+      validate: (value): value is object => typeof value === 'object',
+    })).rejects.toBeInstanceOf(ApiCancellationError);
+  });
+
   it('validates typed response boundaries', async () => {
-    vi.stubGlobal('fetch', vi.fn(async () => ({
-      ok: true,
-      status: 200,
-      json: async () => 42,
-    })));
+    const fetch = vi.fn(async (_url: string, init: RequestInit) => {
+      expect('validate' in init).toBe(false);
+      return {
+        ok: true,
+        status: 200,
+        json: async () => 42,
+      };
+    });
+    vi.stubGlobal('fetch', fetch);
     const transport = new ApiTransport({ baseUrl: 'https://api.example', timeoutMs: 100 });
 
     await expect(transport.request('/approved-resource', {

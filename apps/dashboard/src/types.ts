@@ -6,36 +6,66 @@ export type ViewId =
   | 'recovery'
   | 'checkpoints';
 
-export type DashboardState =
-  | 'loading'
-  | 'empty'
-  | 'error'
-  | 'disconnected'
-  | 'stale'
-  | 'unanchored'
-  | 'pending'
-  | 'anchored-server-reported'
-  | 'verified'
-  | 'tampered';
+export type ViewState = 'loading' | 'empty' | 'error' | 'disconnected' | 'stale';
 
-export type CorrelationStatus =
+export type VaultPersistenceStatus =
+  | 'PENDING'
+  | 'VAULT_PERSISTED'
+  | 'PERSISTENCE_FAILED';
+
+export type AnchorStatus =
+  | 'PENDING'
+  | 'ANCHORED_SERVER_REPORTED'
+  | 'ANCHOR_FAILED';
+
+export type IndependentVerificationStatus =
+  | 'PENDING'
+  | 'RPC_VERIFIED'
+  | 'UNVERIFIABLE'
+  | 'CHAIN_MISMATCH';
+
+export type CollectionGapStatus = 'COLLECTION_GAP';
+export type AuditorOutcome = 'VERIFIED' | 'TAMPERED' | 'UNVERIFIABLE';
+export interface AuditorCliBadge {
+  kind: 'auditor-cli';
+  outcome: AuditorOutcome;
+}
+
+export type StatusBadgeState =
+  | ViewState
+  | VaultPersistenceStatus
+  | AnchorStatus
+  | IndependentVerificationStatus
+  | CollectionGapStatus;
+
+export type ProposedCorrelationStatus =
+  | 'PENDING'
   | 'MATCHED'
   | 'AGENT_ONLY'
   | 'SYSLOG_ONLY'
   | 'LATE_ARRIVAL';
 
-export interface EvidenceEvent {
-  id: string;
-  sourceId: string;
-  streamId: 'agent' | 'rsyslog';
-  hostTimestamp?: string;
-  vaultReceivedAt: string;
-  vaultSequence: number;
-  payloadHash: string;
-  evidenceState: DashboardState;
-  correlationStatus: CorrelationStatus;
-  checkpointId?: string;
+export interface DemoEventDetails {
+  payloadHash?: string;
   rawPreview?: string;
+  batchId?: string;
+  hostComparison?: 'DIFFERENT';
+}
+
+export interface EvidenceEvent {
+  eventId: string;
+  sourceId: string;
+  vaultSequence: number;
+  streamId: 'auth.log';
+  observationSource: 'host-agent' | 'rsyslog-tcp';
+  fileIdentity: string;
+  byteOffset: number;
+  observedAt: string;
+  vaultReceivedAt: string;
+  rawEventLength: number;
+  vaultPersistenceStatus: VaultPersistenceStatus;
+  correlationStatus: ProposedCorrelationStatus;
+  demo?: DemoEventDetails;
 }
 
 export interface Checkpoint {
@@ -45,20 +75,40 @@ export interface Checkpoint {
   merkleRoot: string;
   transactionHash?: string;
   blockReference?: string;
-  state: DashboardState;
   createdAt: string;
+  vaultPersistenceStatus: VaultPersistenceStatus;
+  localAnchorStatus: AnchorStatus;
+  publicAnchorStatus: AnchorStatus;
+  independentVerificationStatus: IndependentVerificationStatus;
 }
 
 export interface VerificationWitness {
-  witness: 'Host' | 'Vault' | 'Blockchain';
-  state: DashboardState;
   summary: string;
   details: Array<{ label: string; value?: string }>;
+}
+
+export interface VerificationSnapshot {
+  host: VerificationWitness & { demoComparison?: 'DIFFERENT' };
+  vault: VerificationWitness & { persistenceStatus: VaultPersistenceStatus };
+  blockchain: VerificationWitness & {
+    localAnchorStatus: AnchorStatus;
+    publicAnchorStatus: AnchorStatus;
+    independentVerificationStatus: IndependentVerificationStatus;
+  };
+}
+
+export interface CollectionGap {
+  sourceId: string;
+  streamId: 'auth.log';
+  windowStart: string;
+  windowEnd: string;
+  status: CollectionGapStatus;
 }
 
 export interface DashboardAdapter {
   readonly mode: 'demo' | 'live';
   getEvents(): EvidenceEvent[];
   getCheckpoints(): Checkpoint[];
-  getVerification(): VerificationWitness[];
+  getVerification(): VerificationSnapshot | undefined;
+  getCollectionGaps(): CollectionGap[];
 }

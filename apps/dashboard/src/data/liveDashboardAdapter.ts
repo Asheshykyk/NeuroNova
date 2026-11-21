@@ -1,22 +1,12 @@
-import type {
-  Checkpoint,
-  EvidenceEvent,
-  DashboardAdapter,
-  VerificationWitness,
-} from '../types';
+import type { DashboardAdapter } from '../types';
 import type { DashboardConfig } from './config';
 
-export class MissingLiveBackendConfigurationError extends Error {
-  readonly name = 'MissingLiveBackendConfigurationError';
-  constructor() {
-    super('Live mode requires approved backend and WebSocket configuration.');
-  }
-}
-
 export interface LiveDashboardState {
+  viewState: 'error' | 'disconnected';
   configError?: string;
   contractError: string;
   transportState: 'disconnected';
+  proposedWebSocketPath: '/api/v1/ws';
 }
 
 export const liveContractsPendingMessage =
@@ -24,22 +14,27 @@ export const liveContractsPendingMessage =
 
 export function createLiveDashboardAdapter(
   config: DashboardConfig,
-): DashboardAdapter & { liveState: () => LiveDashboardState } {
-  const liveState = (): LiveDashboardState => ({
-    configError: !config.apiBaseUrl
-      ? 'Missing VITE_TRUSTTRACE_API_BASE_URL'
-      : !config.wsEndpoint
-        ? 'Missing VITE_TRUSTTRACE_WS_ENDPOINT'
-        : undefined,
+): DashboardAdapter & { getLiveState: () => LiveDashboardState } {
+  const configError = !config.apiBaseUrl
+    ? 'Missing VITE_TRUSTTRACE_API_BASE_URL'
+    : !config.wsEndpoint
+      ? 'Missing VITE_TRUSTTRACE_WS_ENDPOINT'
+      : undefined;
+
+  const getLiveState = (): LiveDashboardState => ({
+    viewState: configError ? 'error' : 'disconnected',
+    configError,
     contractError: liveContractsPendingMessage,
     transportState: 'disconnected',
+    proposedWebSocketPath: '/api/v1/ws',
   });
 
   return {
     mode: 'live',
-    liveState,
-    getEvents: (): EvidenceEvent[] => [],
-    getCheckpoints: (): Checkpoint[] => [],
-    getVerification: (): VerificationWitness[] => [],
+    getLiveState,
+    getEvents: () => [],
+    getCheckpoints: () => [],
+    getVerification: () => undefined,
+    getCollectionGaps: () => [],
   };
 }
