@@ -285,7 +285,7 @@ export function createEventDetailHandler(options: ReadApiOptions) {
 }
 
 export function createBatchesHandler(options: ReadApiOptions) {
-  return (request: Request, response: Response, next: NextFunction): void => {
+  return async (request: Request, response: Response, next: NextFunction): Promise<void> => {
     try {
       const limit = parseLimit(request.query.limit);
       const filter = sourceFilter(request.query.sourceId);
@@ -309,8 +309,9 @@ export function createBatchesHandler(options: ReadApiOptions) {
         });
       }
       const page = batches.slice(0, limit);
-      const items = page.map((batch) => {
+      const items = await Promise.all(page.map(async (batch) => {
         const status = options.anchoringWorker?.getLatestStatuses().get(batch.batchId);
+        const anchoring = await options.batchManager?.getBatchForAnchoring(batch.batchId);
         return {
           batchId: batch.batchId,
           sourceId: batch.sourceId,
@@ -320,13 +321,23 @@ export function createBatchesHandler(options: ReadApiOptions) {
           merkleRoot: batch.merkleRoot,
           previousBatchRoot: batch.previousCheckpointHash,
           commitmentHash: batch.commitmentHash,
+          vaultSignature: anchoring?.signedCommitment?.signature ?? null,
+          vaultSignerAddress: anchoring?.signedCommitment?.signer ?? null,
+          commitment: anchoring?.commitment ? {
+            sourceId: anchoring.commitment.sourceId,
+            sequenceStart: anchoring.commitment.sequenceStart.toString(),
+            sequenceEnd: anchoring.commitment.sequenceEnd.toString(),
+            leafCount: anchoring.commitment.leafCount.toString(),
+            merkleRoot: anchoring.commitment.merkleRoot,
+            previousCheckpointHash: anchoring.commitment.previousCheckpointHash
+          } : null,
           createdAt: batch.createdAt,
           transactionHash: status?.transactionHash ?? null,
           chainId: status?.chainId ?? null,
           blockNumber: status?.blockNumber ?? null,
           anchorStatus: anchorStatus(options, batch)
         };
-      });
+      }));
       const last = page.at(-1);
       const nextCursor = batches.length > limit && last
         ? encodeCursor(last.sourceId, BigInt(last.sequenceStart))

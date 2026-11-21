@@ -4,10 +4,12 @@ import os from 'node:os';
 import path from 'node:path';
 import test from 'node:test';
 import type { BatchCommitment } from '@trusttrace/core';
+import { assertCyprus1Address, isCyprus1Address } from '@trusttrace/core/quai';
 import { EvidenceBatchManager } from '../src/batching/EvidenceBatchManager.ts';
 import { AnchoringWorker } from '../src/blockchain/AnchoringWorker.ts';
 import type { EvidenceAnchorClient, AnchorReceipt, AnchoringTransaction } from '../src/blockchain/types.ts';
 import { EvidenceStore } from '../src/storage/evidenceStore.ts';
+import { getQuaiOrchardConfig, verifyKeySeparation } from '../src/config/index.ts';
 
 const sourceId = '0x' + '22'.repeat(32);
 const privateKey = '0x' + '01'.repeat(32);
@@ -123,4 +125,53 @@ test('contract duplicate is reported as confirmed without resubmission', async (
   assert.equal(updates.length, 1);
   assert.equal(updates[0].status, 'confirmed');
   assert.equal(client.submitted.length, 0);
+});
+
+test('Quai Orchard deployments are read from @trusttrace/core/deployments with valid Cyprus-1 targets', () => {
+  const quaiConfig = getQuaiOrchardConfig();
+  assert.equal(quaiConfig.chainId, 15000n);
+  assert.equal(quaiConfig.zone, 'cyprus-1');
+  assert.equal(quaiConfig.shard, '0x00');
+  assert.equal(quaiConfig.rpcUrl, 'https://orchard.rpc.quai.network/cyprus1');
+  assert.ok(quaiConfig.contractAddress.toLowerCase().startsWith('0x00'));
+  assert.ok(quaiConfig.relayerAddress.toLowerCase().startsWith('0x00'));
+  assert.doesNotThrow(() => assertCyprus1Address(quaiConfig.contractAddress, 'contractAddress'));
+  assert.doesNotThrow(() => assertCyprus1Address(quaiConfig.relayerAddress, 'relayerAddress'));
+});
+
+test('strict key separation ensures Vault signer key and Relayer key are distinct', () => {
+  const vaultSignerKey = '0x0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef';
+  const relayerKey = '0xfedcba9876543210fedcba9876543210fedcba9876543210fedcba9876543210';
+
+  assert.equal(verifyKeySeparation({ vaultSignerPrivateKey: vaultSignerKey, relayerPrivateKey: relayerKey }), true);
+
+  assert.throws(
+    () => verifyKeySeparation({ vaultSignerPrivateKey: vaultSignerKey, relayerPrivateKey: vaultSignerKey }),
+    /Key Separation Violation: Vault Signer key and Relayer key must NOT be identical/
+  );
+});
+
+test('assertCyprus1Address enforces 0x00 prefix and rejects non-Cyprus-1 addresses', () => {
+  assert.equal(isCyprus1Address('0x006479b2cD168F4640d1117BcfC68496924ee9Ff'), true);
+  assert.doesNotThrow(() => assertCyprus1Address('0x006479b2cD168F4640d1117BcfC68496924ee9Ff'));
+
+  assert.equal(isCyprus1Address('0xf39fd6e51aad88f6f4ce6ab8827279cfffb92266'), false);
+  assert.throws(
+    () => assertCyprus1Address('0xf39fd6e51aad88f6f4ce6ab8827279cfffb92266', 'Test Address'),
+    /Quai Shard Violation: Test Address.*is not a valid Cyprus-1 address/
+  );
+});
+
+test('anchoring worker records Quai Orchard Chain ID 15000 in status', async (context) => {
+  const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'trusttrace-anchor-quai-'));
+  const { store, batchManager } = await setup(directory);
+  context.after(() => store.close());
+  const client = new MockAnchorClient();
+  client.chainId = async () => 15000n;
+  const worker = new AnchoringWorker({ directory, batchManager, client });
+
+  const updates = await worker.processEligibleBatches();
+  assert.equal(updates.length, 1);
+  assert.equal(updates[0].status, 'submitted');
+  assert.equal(updates[0].chainId, '15000');
 });

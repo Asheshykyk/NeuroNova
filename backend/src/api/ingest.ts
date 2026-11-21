@@ -13,6 +13,7 @@ interface IngestRequestBody {
   sourceId?: unknown;
   deliveryId?: unknown;
   streamId?: unknown;
+  fileIdentity?: unknown;
   fileGeneration?: unknown;
   byteOffset?: unknown;
   observedAt?: unknown;
@@ -60,6 +61,7 @@ export function createIngestHandler(options: IngestionOptions) {
       const sourceId = requiredString(body, 'sourceId');
       const deliveryId = requiredString(body, 'deliveryId');
       const streamId = requiredString(body, 'streamId');
+      const fileIdentity = requiredString(body, 'fileIdentity');
       const fileGeneration = requiredString(body, 'fileGeneration');
       const byteOffset = parseDecimalUint64(body.byteOffset, 'byteOffset');
       const observedAt = parseDecimalUint64(body.observedAt, 'observedAt');
@@ -92,6 +94,7 @@ export function createIngestHandler(options: IngestionOptions) {
         sourceId,
         deliveryId,
         streamId,
+        fileIdentity,
         fileGeneration,
         byteOffset,
         observedAt,
@@ -109,6 +112,7 @@ export function createIngestHandler(options: IngestionOptions) {
           deliveryId,
           rawEventBytes,
           streamId,
+          fileIdentity,
           fileGeneration,
           byteOffset,
           observedAt,
@@ -121,6 +125,8 @@ export function createIngestHandler(options: IngestionOptions) {
         }
         throw error;
       }
+
+      console.log(`[Ingest] Received signed chunk from ${sourceId} (seq ${receipt.vaultSequence}, deliveryId ${deliveryId})`);
 
       response.status(receipt.duplicate ? 200 : 201).json({
         status: 'accepted',

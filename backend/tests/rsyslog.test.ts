@@ -290,6 +290,7 @@ test('Host Agent and rsyslog observations remain separate correlated records', a
       deliveryId: chunkVector.chunk.deliveryId,
       streamId: chunkVector.chunk.streamId,
       fileIdentity: chunkVector.chunk.fileIdentity,
+      fileGeneration: chunkVector.chunk.fileGeneration,
       byteOffset: chunkVector.chunk.byteOffset,
       observedAt: chunkVector.chunk.observedAt,
       rawEventBase64: raw.toString('base64'),
