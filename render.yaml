@@ -1,0 +1,29 @@
+services:
+  - type: web
+    name: trusttrace-vault
+    runtime: docker
+    dockerfilePath: backend/Dockerfile
+    healthCheckPath: /health
+    disk:
+      name: vault-data
+      mountPath: /data/vault
+      sizeGB: 1
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: DOCKER
+        value: "true"
+      - key: BACKEND_HOST
+        value: 0.0.0.0
+      - key: RSYSLOG_HOST
+        value: 0.0.0.0
+      - key: RSYSLOG_PORT
+        value: "5140"
+      - key: EVIDENCE_DIRECTORY
+        value: /data/vault
+      - key: EVIDENCE_SQLITE_PATH
+        value: /data/vault/evidence-index.sqlite3
+      - key: AGENT_PUBLIC_KEY_HEX
+        value: "0x207a067892821e25d770f1fba0c47c11ff4b813e54162ece9eb839e076231ab6"
+      - key: VAULT_SIGNER_PRIVATE_KEY
+        value: "0x0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
