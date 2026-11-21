@@ -16,6 +16,38 @@ unless separately approved and documented.
 
 - [x] Person 2 implements `POST /api/v1/logs/ingest`. This is confirmed ingest
   implementation, not approval of any dashboard read contract.
+- [x] Person 2 confirms that `/health` is the currently implemented health route.
+  `/api/v1/health` is not confirmed and must not be claimed.
+
+### Person 2 conditional architecture approval
+
+The following corrections are acknowledged by the team record and remain subject
+to final schema and implementation sign-off:
+
+- [x] `vaultSequence` is assigned per source and is source-local, not global or stream-local.
+- [x] Host Agent HTTP and rsyslog TCP observations share a source-level sequence
+  space and use separate `observationSource` values.
+- [x] `(sourceId, vaultSequence)` is the authoritative event identity, and
+  `eventId = sourceId + ":" + vaultSequence`.
+- [x] The current auth.log source uses `streamId: "auth.log"`.
+- [x] Event metadata includes source, sequence, stream, observation source,
+  file location, observed receipt timestamps, raw length, persistence,
+  and correlation fields in the proposed read model.
+- [x] Raw payload bytes are excluded from event list responses. A future evidence
+  detail route is not finalized.
+- [x] Signature and keyId are not promised in read responses until retrieval is implemented.
+- [x] Identical Host Agent delivery-ID retries return the original receipt; conflicting
+  delivery-ID reuse returns HTTP 409.
+- [x] Repeated rsyslog observations remain separate records.
+- [x] Host Agent and rsyslog observations remain separate records and may later correlate.
+- [x] `fileIdentity` and `byteOffset` are not event identities.
+- [x] Pagination uses default `50`, maximum `100`, `nextCursor`, and stable
+  ordering by `sourceId`, then `vaultSequence`.
+- [x] WebSocket notifications are deduplicated by `messageId`.
+- [x] `event.persisted` replaces `event.received` and requires durable Vault persistence.
+- [x] No replay/resumption promise is made in the first integration.
+- [x] Reconnect will trigger REST refetch/reconciliation after approved read APIs exist.
+- [x] ZIP export is pending; no manifest or bundle layout is approved.
 
 ### Confirmed Person 4 boundaries
 
@@ -28,10 +60,12 @@ unless separately approved and documented.
 
 ### Not yet implemented or approved
 
-- [ ] Event, source, batch, checkpoint, and gap read APIs.
-- [ ] WebSocket server.
+- [ ] Event, source, batch, checkpoint, and gap read API implementations.
+- [ ] WebSocket server and approved message schemas.
 - [ ] ZIP evidence export.
 - [ ] Evidence detail and verification read contracts.
+- [ ] Final filtering, authentication, and error conventions.
+- [ ] Final read-model field names and status enum values.
 
 ## Cross-team repository decisions
 
@@ -56,17 +90,24 @@ unless separately approved and documented.
 
 ## Person 2 approvals
 
+- [ ] Final-sign-off the architecture corrections in this record.
 - [ ] Confirm or replace the proposed `GET /api/v1/sources` read contract.
 - [ ] Confirm or replace the proposed `GET /api/v1/events` read contract.
+- [ ] Confirm or replace `GET /api/v1/sources/:sourceId/events/:vaultSequence`
+  as the source-scoped event detail route.
 - [ ] Confirm or replace the proposed `GET /api/v1/batches` read contract.
 - [ ] Confirm or replace the proposed `GET /api/v1/checkpoints` read contract.
 - [ ] Confirm or replace the proposed `GET /api/v1/gaps` read contract.
-- [ ] Confirm the final dashboard read routes, request parameters, pagination, source scoping, and error response shape.
+- [ ] Confirm the final dashboard read routes, request parameters, source scoping, and error response shape.
 - [ ] Confirm the event, batch, verification-result, health, and evidence-detail response fields.
 - [ ] Confirm vault-assigned sequence ownership, durable-receipt acknowledgement point, reconciliation state vocabulary, and retention of raw bytes.
 - [ ] Confirm WebSocket endpoint, authentication, subscription scope, event envelope, replay or resumption semantics, duplicate handling, ordering, and liveness behaviour.
-- [ ] Confirm whether reconnect-triggered REST refetch is sufficient and whether the server promises any replay.
-- [ ] Confirm source/sequence ordering and the exact duplicate identity fields.
+- [ ] Confirm the exact source-scoped read route and response schema.
+- [ ] Confirm whether reconnect-triggered REST refetch is sufficient and whether
+  the server promises any replay.
+- [ ] Confirm source-local sequencing and stable
+  `sourceId`, then `vaultSequence` ordering.
+- [ ] Confirm `messageId` WebSocket deduplication and `event.persisted` semantics.
 - [ ] Confirm evidence-export transport and bundle content, including manifest fields, file hashes, raw-evidence representation, proof material, and bundle-versioning rule.
 - [ ] Confirm server verification labels are reported as server results and remain distinct from direct-RPC CLI verification.
 - [ ] Confirm local Hardhat and public Quai anchor fields remain distinct from direct-RPC verified status.
@@ -88,6 +129,8 @@ these read mappings until Person 2 signs off.
 
 Person 4 live read integration is not ready until Person 2 approves the read
 REST and WebSocket contracts. The dashboard intentionally remains in DEMO mode.
+The resource structure corrections above are conditional architecture approval,
+not implementation approval.
 Person 1, Person 2, and Person 3 approval remains required for the broader
 interface freeze, including shared cryptography, read models, source semantics,
 and bundle formats.

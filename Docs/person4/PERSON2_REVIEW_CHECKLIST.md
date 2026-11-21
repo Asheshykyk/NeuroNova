@@ -1,84 +1,158 @@
 # Person 2 interface review checklist
 
-**Status: PROPOSED — SIGN-OFF REQUIRED**
+**Status: CONDITIONAL ARCHITECTURE APPROVAL — FINAL SIGN-OFF PENDING**
 
-Person 2: review the proposed REST and WebSocket interfaces in
-[api-contract-proposal.md](./api-contract-proposal.md). Sign-off is required
-before Person 4 may implement provisional live mappings.
+Person 2: review [api-contract-proposal.md](./api-contract-proposal.md) and
+record final approval or requested changes. This document does not authorize
+live dashboard mappings until Person 2 signs off the final schemas.
 
-## Confirmed
+## Implementation status
 
-- [x] `POST /api/v1/logs/ingest` is implemented.
-- [ ] Event read APIs are implemented.
-- [ ] Source read APIs are implemented.
-- [ ] Batch read APIs are implemented.
-- [ ] Checkpoint read APIs are implemented.
-- [ ] Gap read APIs are implemented.
-- [ ] WebSocket server is implemented.
-- [ ] ZIP export is implemented.
-- [ ] Dashboard live mode is enabled.
+| Item | Status |
+| --- | --- |
+| `POST /api/v1/logs/ingest` | **IMPLEMENTED — confirmed** |
+| `/health` | **IMPLEMENTED — confirmed** |
+| `GET /api/v1/sources` | **PROPOSED — NOT IMPLEMENTED** |
+| `GET /api/v1/events` | **PROPOSED — NOT IMPLEMENTED** |
+| `GET /api/v1/sources/:sourceId/events/:vaultSequence` | **PROPOSED — NOT IMPLEMENTED** |
+| `GET /api/v1/batches` | **PROPOSED — NOT IMPLEMENTED** |
+| `GET /api/v1/checkpoints` | **PROPOSED — NOT IMPLEMENTED** |
+| `GET /api/v1/gaps` | **PROPOSED — NOT IMPLEMENTED** |
+| WebSocket server | **NOT IMPLEMENTED** |
+| ZIP export | **NOT IMPLEMENTED** |
 
-## REST review
+## Resolved and acknowledged review corrections
 
-Approve or replace each item:
+- [x] `vaultSequence` is source-local and shared across Host Agent and rsyslog TCP
+  observations; it is not global or stream-local.
+- [x] Host Agent HTTP and rsyslog TCP observations share the source sequence space.
+- [x] `(sourceId, vaultSequence)` is the authoritative event identity, with
+  `eventId = sourceId + ":" + vaultSequence`.
+- [x] The current auth.log source uses `streamId: "auth.log"`.
+- [x] `observationSource` distinguishes `host-agent` and `rsyslog-tcp`.
+- [x] `fileIdentity` and `byteOffset` are metadata, not unique event identifiers.
+- [x] Pagination is default `50`, maximum `100`, uses `nextCursor`, and uses stable
+  ordering by `sourceId`, then `vaultSequence` ascending.
+- [x] Identical Host Agent delivery-ID retries return the original receipt.
+- [x] Conflicting Host Agent delivery-ID reuse returns HTTP 409.
+- [x] Repeated rsyslog observations remain separate Vault records.
+- [x] Host Agent and rsyslog observations remain separate and may correlate later.
+- [x] The proposed source-scoped event detail route is
+  `GET /api/v1/sources/:sourceId/events/:vaultSequence`.
+- [x] WebSocket notification deduplication uses `messageId`.
+- [x] Event notifications use `event.persisted`, emitted only after durable Vault persistence.
+- [x] The first integration has no guaranteed WebSocket replay or resumption.
+- [x] Reconnect will trigger REST refetch/reconciliation once approved read endpoints exist.
+- [x] Local Hardhat, public Quai, and independent verification remain distinct.
+- [x] Public target is Quai Orchard Cyprus-1, chain ID 15000.
+- [x] ZIP export is not implemented and no manifest layout is approved.
 
-- [ ] Final paths and HTTP methods for sources, events, batches, checkpoints, gaps,
-  evidence detail, health, verification, and export.
-- [ ] Event, batch, checkpoint, gap, and source success field names.
-- [ ] Query filters and source-scoping rules.
-- [ ] Stable cursor pagination and page-size limits.
-- [ ] UTC observation timestamp field and empty-page behavior.
-- [ ] HTTP status mapping and machine-readable error envelope.
-- [ ] Authentication and authorization requirements.
-- [ ] Durable vault persistence acknowledgement point.
-- [ ] Raw payload retention and whether it is exposed in list/detail responses.
+## Final approval sections
 
-## Sequence and duplicate review
+Mark each section: **APPROVED / REQUIRES CHANGE / PENDING**.
 
-- [ ] Is `vaultSequence` global, source-local, or stream-local?
-- [ ] Which fields create the unique event identity?
-- [ ] Is ascending `vaultSequence` the required read/API order?
-- [ ] How are gaps, late arrivals, reassignment, and reconciliation represented?
-- [ ] Which fields identify an exact duplicate WebSocket frame?
-- [ ] What duplicate-suppression window is available or required?
+### 1. Event and source read schemas
 
-## WebSocket review
+Status: **APPROVED — AGREED CORRECTIONS**
 
-- [ ] Confirm the final endpoint and connection authentication.
-- [ ] Confirm subscription and source-scope behavior.
-- [ ] Confirm or replace `messageId`, `occurredAt`, `type`, `sourceId`, and `payload`.
-- [ ] Confirm or replace the proposed event type names.
-- [ ] Confirm ping/pong and heartbeat behavior.
-- [ ] Confirm whether reconnect resume or replay is supported.
-- [ ] Confirm no replay is promised for the first Phase 1C integration.
-- [ ] Confirm REST refetch after reconnect is sufficient to recover missed frames.
-- [ ] Confirm duplicate-frame delivery behavior.
-- [ ] Confirm payload identity fields for each event type.
+- [x] Final event metadata field names and types
+- [x] Required fields: `eventId`, `sourceId`, `vaultSequence`, `streamId`,
+  `observationSource`, `fileIdentity`, `byteOffset`, `observedAt`,
+  `vaultReceivedAt`, `rawEventLength`, `vaultPersistenceStatus`, and
+  `correlationStatus`
+- [x] Confirmation that `observedAt` means source observation time
+- [x] Confirmation that `vaultReceivedAt` means Vault receipt time
+- [x] Confirmation that list responses exclude raw payloads
+- [x] Confirmation that signature/keyId remain excluded until retrieval exists
+- [ ] Future evidence-detail route remains pending
+- [x] Source and event detail resource structure uses
+  `GET /api/v1/sources/:sourceId/events/:vaultSequence`
 
-## Status boundary review
+### 2. REST pagination, filtering, authentication, and errors
 
-- [ ] `VAULT_PERSISTED` means the approved durable-receipt point.
-- [ ] Local Hardhat anchor status remains separate from public Quai status.
-- [ ] Public Quai anchor status remains
-  `ANCHORED_SERVER_REPORTED` unless direct-RPC verification succeeds.
-- [ ] Public target is **Quai Orchard Cyprus-1, chain ID 15000**.
-- [ ] Independent verification status is based only on direct-RPC or approved CLI output.
-- [ ] Missing chain proof is not displayed as tampering.
-- [ ] `COLLECTION_GAP` is not interpreted as evidence that an event occurred.
+Status: **PENDING FINAL SCHEMA SIGN-OFF**
 
-## Final sign-off
+- [x] Pagination uses opaque `nextCursor`
+- [x] Default page size is `50`; maximum is `100`
+- [x] Stable ordering is `sourceId`, then `vaultSequence` ascending
+- [ ] Event/source/batch/checkpoint/gap filter names
+- [ ] Source scoping and ordering
+- [ ] Authentication and authorization
+- [ ] HTTP status mapping
+- [ ] Machine-readable error envelope
+- [ ] Empty-result and stale-refresh behavior
+- [ ] Final confirmation of `/health` versus no `/api/v1/health`
 
-- [ ] Person 2 approves the REST contract.
-- [ ] Person 2 approves the WebSocket contract.
-- [ ] Person 2 approves the sequence and duplicate rules.
-- [ ] Person 2 approves status and error vocabulary.
-- [ ] Person 4 may begin only REST/WebSocket mapping work after sign-off.
+### 3. Sequence and reconciliation
 
-Sign-off record (Person 2):
+Status: **APPROVED — AGREED CORRECTIONS**
+
+- [x] Confirm `eventId = sourceId + ":" + vaultSequence`
+- [x] Confirm `(sourceId, vaultSequence)` as authoritative identity
+- [ ] Confirm source-level continuity and gap rules
+- [ ] Confirm delivery-ID retry and 409 behavior
+- [x] Confirm rsyslog records remain separate
+- [x] Confirm fileIdentity/byteOffset are not deduplication keys
+- [ ] Confirm reconciliation/correlation response fields
+
+### 4. WebSocket envelope and recovery
+
+Status: **PENDING FINAL SCHEMA SIGN-OFF**
+
+- [ ] Final endpoint and source subscription scope
+- [ ] Authentication
+- [x] `messageId`, `occurredAt`, `type`, `sourceId`, `payload` envelope
+- [ ] `event.persisted` and all remaining event type names
+- [ ] Payload structures for each type
+- [x] `messageId` deduplication behavior
+- [ ] No replay/resumption promise
+- [ ] REST refetch/reconciliation after reconnect
+- [ ] Heartbeat/ping behavior
+- [ ] Out-of-order and duplicate delivery behavior
+
+### 5. Status semantics
+
+Status:
+
+- [ ] `VAULT_PERSISTED`
+- [ ] Local Hardhat anchoring
+- [ ] Public Quai anchoring
+- [ ] `ANCHORED_SERVER_REPORTED`
+- [ ] `RPC_VERIFIED`
+- [ ] `UNVERIFIABLE`
+- [ ] `COLLECTION_GAP`
+- [ ] Confirmation that RPC_VERIFIED requires direct-RPC evidence
+- [ ] Confirmation that UNVERIFIABLE is not tampering
+- [ ] Confirmation that public/server anchoring is not full event-level VERIFIED
+
+### 6. Evidence export
+
+Status:
+
+- [ ] ZIP export member layout
+- [ ] Manifest field and version conventions
+- [ ] Original raw bytes representation
+- [ ] Proof representation
+- [ ] Signed commitment fields
+- [ ] Chain metadata
+- [ ] Manifest hashes bundle members except itself
+- [ ] Approved fixtures and integrity validation
+
+## Final Person 2 sign-off
+
+- [ ] REST read contracts approved
+- [ ] WebSocket contract approved
+- [ ] Sequence and duplicate behavior approved
+- [ ] Status vocabulary approved
+- [ ] Evidence export remains pending or is approved separately
+- [ ] Person 4 may begin live mapping only after this sign-off
+
+Sign-off record:
 
 ```text
+Decision: APPROVED / REQUIRES CHANGE / PENDING
 Approved on:
 Approved branch/commit:
 Approved contract document or implementation reference:
-Known deviations from this proposal:
+Known deviations:
 ```

@@ -2,13 +2,55 @@
 
 ## Status
 
-**PROPOSED — REQUIRES TEAM APPROVAL** This document consumes interfaces owned by Person 2. It describes the minimum dashboard and auditor-facing contract suggested by the project blueprint and does not define final backend endpoints. Person 2 owns API schemas and Person 1 owns cryptographic representations.
+**STATUS LABELS**
+
+- **IMPLEMENTED:** only the confirmed backend operations listed below.
+- **ARCHITECTURALLY APPROVED:** Person 2-reviewed architecture corrections included in this document.
+- **PROPOSED:** resource structure or illustrative fields that still require final schema conventions.
+- **PENDING FINAL SIGN-OFF:** finalized paths, fields, pagination, authentication, errors, WebSocket payloads, export layout, and implementation status.
+
+This document consumes interfaces owned by Person 2. Person 2 owns API schemas
+and Person 1 owns cryptographic representations.
 
 All timestamps are UTC RFC 3339 strings. Hashes, roots, signatures, and transaction hashes are strings whose final encoding is defined by the shared contracts and crypto test vectors. Raw payloads remain losslessly encoded bytes. JSON object property order must never define a cryptographic digest.
 
+## Implementation status
+
+### IMPLEMENTED
+
+- `POST /api/v1/logs/ingest` — confirmed implemented by Person 2.
+- The currently implemented health route is `/health`. This route is not
+  `/api/v1/health`, and its response schema is not inferred here.
+
+### ARCHITECTURALLY APPROVED
+
+The following Person 2 review corrections are conditionally architecture-approved:
+
+- `vaultSequence` is assigned per source, not globally and not per stream.
+- Host Agent HTTP and rsyslog TCP observations share the same per-source sequence space.
+- `(sourceId, vaultSequence)` is the authoritative event identity, and
+  `eventId` is exactly `sourceId + ":" + vaultSequence` (for example,
+  `source-01:184`). `eventId` must not contradict `(sourceId, vaultSequence)`.
+- The current auth.log source uses `streamId: "auth.log"`.
+- `observationSource` distinguishes `host-agent` and `rsyslog-tcp`.
+- `fileIdentity` and `byteOffset` are observation metadata, not a unique event ID.
+- Repeated rsyslog observations remain separate records.
+- Host Agent and rsyslog observations may be correlated later but remain separate Vault records.
+- Identical Host Agent delivery-ID retries return the original receipt.
+- Conflicting reuse of a delivery ID returns HTTP 409.
+- The source-scoped event detail route is `GET /api/v1/sources/:sourceId/events/:vaultSequence`.
+- A reconnect triggers REST refetch/reconciliation once approved read endpoints exist.
+- WebSocket notification deduplication uses `messageId`.
+- `event.persisted` replaces `event.received` and is emitted only after durable Vault persistence succeeds.
+
+### PROPOSED / NOT IMPLEMENTED
+
+Read resources, WebSocket server and payloads, evidence detail, and ZIP export
+remain proposed or pending implementation.
+
 ## Evidence and anchoring status boundaries
 
-**PROPOSED — REQUIRES TEAM APPROVAL — NOT IMPLEMENTED**
+**PROPOSED STATUS VOCABULARY — PENDING FINAL SIGN-OFF**
 
 The dashboard must keep these findings separate:
 
@@ -26,39 +68,57 @@ Recommended dashboard labels:
 | --- | --- |
 | `PENDING` | Receipt, persistence acknowledgement, batching, or verification work is incomplete. |
 | `VAULT_PERSISTED` | Proposed API-confirmed durable vault evidence. |
-| `LOCAL_ANCHOR_SERVER_REPORTED` | API reports a local Hardhat anchor. |
-| `PUBLIC_ANCHOR_SERVER_REPORTED` | API reports a public Quai anchor. |
+| Local Hardhat anchor | The API or operational system reports an anchor in the local Hardhat network. It is separate from public anchoring. |
+| `ANCHORED_SERVER_REPORTED` | A server reports an anchor or transaction reference. It is not independent verification. |
+| Public Quai anchor | The API reports an anchor in Quai Orchard Cyprus-1, chain ID 15000. It remains server-reported until direct-RPC verification succeeds. |
 | `RPC_VERIFIED` | Direct-RPC verification independently confirms the commitment. |
-| `UNVERIFIABLE` | RPC or required evidence was unavailable. |
+| `UNVERIFIABLE` | Required evidence or RPC access was unavailable. This is not a tamper finding. |
 | `CHAIN_MISMATCH` | Independent verification found a commitment mismatch. |
 | `COLLECTION_GAP` | A collection window was missed. It does not establish event occurrence. |
 
-All names above are proposals and require Person 2 and shared-interface
-approval. The dashboard must retain separate fields or cards when multiple
-levels exist; it must not replace local/public status with a generic
-`VERIFIED` badge.
+`VAULT_PERSISTED` does not imply local or public anchoring. Local Hardhat
+anchoring does not imply public Quai anchoring. `ANCHORED_SERVER_REPORTED`
+does not become `RPC_VERIFIED` from an API response or transaction hash.
+`RPC_VERIFIED` requires actual independent direct-RPC verification of the
+relevant public commitment. It must not be equated with full event-level
+`VERIFIED` unless all required evidence, cryptographic checks, and chain checks
+have passed.
 
 ## Read models
 
 ### Event
 
+**PROPOSED READ MODEL — PENDING FINAL SIGN-OFF — NOT IMPLEMENTED**
+
+Illustrative list metadata:
+
 ```json
 {
-  "eventId": "source-01-agent-000001",
+  "eventId": "source-01:1",
   "sourceId": "source-01",
-  "streamId": "agent",
-  "hostTimestamp": "2026-11-20T10:00:00.000Z",
-  "vaultReceivedAt": "2026-11-20T10:00:01.000Z",
   "vaultSequence": 1,
-  "rawPayloadBase64": "BASE64_ENCODED_ORIGINAL_BYTES",
-  "payloadSha256": "0x...",
-  "signature": "0x...",
-  "keyId": "source-01-key-01",
+  "streamId": "auth.log",
+  "observationSource": "host-agent",
+  "fileIdentity": "illustrative-file-identity",
+  "byteOffset": 12345,
+  "observedAt": "2026-11-20T10:00:00.000Z",
+  "vaultReceivedAt": "2026-11-20T10:00:01.000Z",
+  "rawEventLength": 256,
+  "vaultPersistenceStatus": "VAULT_PERSISTED",
   "correlationStatus": "PENDING"
 }
 ```
 
-`rawPayloadBase64`, `signature`, and host-comparison material may be withheld from list responses and supplied by an evidence-detail response. `vaultSequence` is assigned by the vault. The final uniqueness and ordering rule requires Person 2 approval.
+- `eventId` is exactly `sourceId + ":" + vaultSequence`; `(sourceId, vaultSequence)`
+  remains the authoritative parsed identity.
+- `observedAt` is the source observation timestamp.
+- `vaultReceivedAt` is the Vault receipt timestamp.
+- `rawEventLength` is metadata only; raw event payloads are excluded from list responses.
+- `observationSource` is `host-agent` or `rsyslog-tcp`.
+- `fileIdentity` and `byteOffset` describe location and are not unique event identifiers.
+- Signature and keyId are not promised until authorized retrieval is implemented.
+- Raw bytes are available only through a future authorized evidence-detail endpoint.
+  Its route and response schema are not finalized.
 
 ### Batch commitment
 
@@ -114,12 +174,11 @@ The resources below are an approval proposal for Person 2. None is implemented f
 | List batches | `GET /api/v1/batches` | local batch metadata and sequence ranges |
 | List checkpoints | `GET /api/v1/checkpoints` | local/public anchor and independent-verification status |
 | List collection gaps | `GET /api/v1/gaps` | heartbeat and collection-gap observations |
-| Fetch evidence record | `GET /api/v1/events/:sequence` | preserved bytes, comparison and proof metadata |
+| Fetch source event detail | `GET /api/v1/sources/:sourceId/events/:vaultSequence` | proposed source-scoped event metadata; raw-byte detail route remains pending |
 | Fetch batch | `GET /api/v1/batches/:batchId` | batch detail and chain reference |
 | Verify batch | `POST /api/v1/verify/batch/:batchId` | server-reported verification run |
 | Verify event | `POST /api/v1/verify/event/:sequence` | server-reported event verification run |
 | Export bundle | `GET /api/v1/export/:batchId` | auditor download |
-| Service health | `GET /api/v1/health` | connection and dependency display |
 | Controlled scenario | `POST /api/v1/simulations/:scenario` | demo control only if approved |
 
 The ingest operation is confirmed implemented:
@@ -132,6 +191,10 @@ This confirmed ingestion route is not evidence for a read contract. Its request 
 response fields remain governed by Person 2's ingest implementation and are not
 proposed or consumed as dashboard live read models here.
 
+The currently implemented health route is `/health`. It must not be interpreted
+as `GET /api/v1/health`. The `/health` response schema is pending documentation
+and is not a proposed dashboard read mapping.
+
 ## Proposed read-resource contracts
 
 ### Common list query parameters
@@ -141,13 +204,15 @@ proposed or consumed as dashboard live read models here.
 | Parameter | Type | Proposed meaning |
 | --- | --- | --- |
 | `sourceId` | string | Scope the result to one source. |
-| `cursor` | string | Opaque stable cursor; cursor contents must not be interpreted by the dashboard. |
-| `limit` | integer | Maximum page size. Person 2 must define the allowed range and default. |
+| `nextCursor` | string | Opaque continuation cursor; cursor contents must not be interpreted by the dashboard. |
+| `limit` | integer | Requested page size. Default `50`; maximum `100`. Values above `100` must be rejected or capped by the final approved API convention. |
 | `observedAtFrom` | RFC 3339 UTC string | Inclusive lower observation-time bound. |
 | `observedAtTo` | RFC 3339 UTC string | Inclusive upper observation-time bound. |
 
-All list responses should include the server observation time and an opaque continuation
-cursor if another page exists.
+All list responses should include the server observation time and an opaque
+`nextCursor` if another page exists. List order is stable by `sourceId`, then
+`vaultSequence` ascending. `vaultSequence` is source-local and is shared across
+Host Agent and rsyslog TCP observations for the same source.
 
 ```json
 {
@@ -192,13 +257,14 @@ Supported proposed filters:
 | Parameter | Proposed meaning |
 | --- | --- |
 | `sourceId` | Source identifier. |
-| `streamId` | Proposed values `agent` or `rsyslog`. Person 3 owns final identifiers. |
+| `streamId` | Stream identifier; the agreed auth.log source stream is `auth.log`. |
+| `observationSource` | Proposed values `host-agent` or `rsyslog-tcp`. |
 | `sequenceFrom` | Inclusive vault-sequence lower bound for one source. |
 | `sequenceTo` | Inclusive vault-sequence upper bound for one source. |
 | `batchId` | Batch containing or associated with the event. |
 | `correlationStatus` | Proposed `PENDING`, `MATCHED`, `AGENT_ONLY`, `SYSLOG_ONLY`, or `LATE_ARRIVAL`. Final vocabulary requires approval. |
 | `evidenceStatus` | Proposed operational status filter. |
-| `cursor`, `limit`, `observedAtFrom`, `observedAtTo` | Common paging and time filters. |
+| `nextCursor`, `limit`, `observedAtFrom`, `observedAtTo` | Common paging and time filters. |
 
 Success shape:
 
@@ -207,25 +273,29 @@ Success shape:
   "observedAt": "2026-11-20T10:43:03.000Z",
   "items": [
     {
-      "eventId": "source-01-agent-000001",
+      "eventId": "source-01:1",
       "sourceId": "source-01",
-      "streamId": "agent",
-      "hostTimestamp": "2026-11-20T10:00:00.000Z",
-      "vaultReceivedAt": "2026-11-20T10:00:01.000Z",
       "vaultSequence": 1,
-      "payloadSha256": "0x...",
-      "correlationStatus": "PENDING",
-      "vaultPersistenceStatus": "PERSISTED",
-      "batchId": null
+      "streamId": "auth.log",
+      "observationSource": "host-agent",
+      "fileIdentity": "illustrative-file-identity",
+      "byteOffset": 12345,
+      "observedAt": "2026-11-20T10:00:00.000Z",
+      "vaultReceivedAt": "2026-11-20T10:00:01.000Z",
+      "rawEventLength": 256,
+      "vaultPersistenceStatus": "VAULT_PERSISTED",
+      "correlationStatus": "PENDING"
     }
   ],
   "nextCursor": null
 }
 ```
 
-List events may omit raw bytes and proof material. The proposal requires explicit
-`vaultPersistenceStatus` so a UI frame cannot infer durable preservation from
-reception alone.
+Raw event payloads are excluded by default. `signature` and `keyId` are not
+promised in this read model. The authoritative event identity is
+`(sourceId, vaultSequence)`. `vaultSequence` starts and advances independently
+within each source; it is not global and is shared by both Host Agent and
+rsyslog observations for that source.
 
 ### Proposed `GET /api/v1/batches`
 
@@ -310,7 +380,7 @@ independent direct-RPC verification result.
 **PROPOSED — REQUIRES PERSON 2 APPROVAL — NOT IMPLEMENTED**
 
 Filters: `sourceId`, `streamId`, `status`, `openedFrom`, `openedTo`, common
-cursor and limit values, and common observation-time filters.
+`nextCursor` and `limit` values, and common observation-time filters.
 
 ```json
 {
@@ -319,7 +389,7 @@ cursor and limit values, and common observation-time filters.
     {
       "gapId": "gap-source-01-agent-2026-11-20T10",
       "sourceId": "source-01",
-      "streamId": "agent",
+      "streamId": "auth.log",
       "windowStart": "2026-11-20T10:40:00.000Z",
       "windowEnd": "2026-11-20T10:42:00.000Z",
       "status": "COLLECTION_GAP",
@@ -349,9 +419,10 @@ not establish whether a source event occurred or did not occur in that window.
 
 **PROPOSED — REQUIRES PERSON 2 APPROVAL — NOT IMPLEMENTED**
 
-Successful list responses use the common shape above. Person 2 must confirm
-whether a paged response may use an HTTP `Link` header, a response `nextCursor`,
-or both. The dashboard must treat cursor opacity as an implementation detail.
+Successful list responses use the common shape above with `nextCursor`. The
+stable ordering and opaque cursor convention are agreed architecture decisions;
+the exact HTTP cursor encoding remains a final schema convention. The dashboard
+must treat cursor opacity as an implementation detail.
 
 Successful detail responses may return the resource object directly or through
 an approved object envelope. Until Person 2 approves a convention, Person 4
@@ -398,12 +469,13 @@ message schema are not implemented.
 {
   "messageId": "01J...",
   "occurredAt": "2026-11-20T10:00:01.000Z",
-  "type": "event.received",
+  "type": "event.persisted",
   "sourceId": "source-01",
   "payload": {
-    "eventId": "source-01-agent-000001",
+    "eventId": "source-01:1",
     "vaultSequence": 1,
-    "streamId": "agent",
+    "streamId": "auth.log",
+    "observationSource": "host-agent",
     "vaultReceivedAt": "2026-11-20T10:00:01.000Z",
     "correlationStatus": "PENDING"
   }
@@ -420,17 +492,18 @@ The envelope fields shown above are proposed:
 | `sourceId` | Required when a source applies; may be omitted for source-independent scenario or service events. |
 | `payload` | Type-specific object; fields and identifiers are unapproved until Person 2 signs off. |
 
-Person 2 proposes the following event type names:
-`event.received`,
+Architecturally approved/Person 2-proposed event type names:
+`event.persisted`,
 `event.reconciled`,
 `batch.created`,
 `batch.anchored`,
 `verification.completed`,
 `collector.heartbeat`,
 `collector.gap`,
-and `scenario.updated`.
+and `scenario.updated`. Exact payload structures and type-name approval remain pending.
 
-These names are not final and no dashboard mapping is implemented.
+`event.persisted` is emitted only after successful durable Vault persistence.
+It must not be emitted merely on ingest or socket reception.
 
 ### Reconnect behavior
 
@@ -455,24 +528,27 @@ or resume semantics are unavailable, REST refetch is the recovery boundary.
 
 **PROPOSED — REQUIRES PERSON 2 APPROVAL — NOT IMPLEMENTED**
 
-For a source, the vault-assigned `vaultSequence` is proposed as the monotonic
-display key. The dashboard should display rows in ascending `vaultSequence`
-order. Person 2 must confirm the exact source-and-stream sequence scope, whether
-`vaultSequence` is global per vault, source-local, or stream-local, and whether
-sequence gaps are possible or indicate continuity failure.
+For a source, the Vault-assigned `vaultSequence` is monotonically ordered within
+that source and is shared by Host Agent and rsyslog TCP observations. The
+dashboard should display rows in ascending `vaultSequence` order for one source.
+Sequence gaps and continuity interpretation require final approval.
 
 The dashboard should suppress:
 
-- exact duplicate `messageId` values;
-- exact duplicate event identities returned by REST or WebSocket mapping;
+- exact duplicate `messageId` values in WebSocket notifications;
+- exact duplicate event identities `(sourceId, vaultSequence)` returned by REST;
 - duplicate batched or gap notifications until approved resource identity rules
   are defined.
 
-Suppression must be bounded by a retained-message/event ID window and must not
-discard a REST snapshot. A lower or missing `vaultSequence` than the current
-rendered high-water mark should be marked out of order and refetched rather
-than rewritten by arrival order. Sequence reassignment after a message is
-received is a REST-authoritative change and must be handled by refetch.
+The dashboard must not deduplicate evidence records using `fileIdentity` or
+`byteOffset`. Identical Host Agent delivery-ID retries return the original
+receipt and conflicting reuse returns HTTP 409. Repeated rsyslog observations
+remain separate Vault records. Host Agent and rsyslog observations of the same
+line remain separate and may be correlated later.
+
+Suppression must be bounded and must not discard a REST snapshot. A lower or
+missing `vaultSequence` than the current rendered high-water mark should be
+marked out of order and reconciled by REST, not reordered by socket arrival.
 
 No WebSocket frame is an acknowledgement of durable vault persistence. The
 event read API and `vaultPersistenceStatus` are the proposed durable-evidence
@@ -480,7 +556,19 @@ authority.
 
 ## Evidence export response
 
-**PROPOSED — REQUIRES TEAM APPROVAL** Export must return a binary archive or directory representation plus a manifest that the independent CLI can validate without dashboard state. The transport may expose a manifest JSON response with a bundle download URL only if its integrity binding is explicit.
+**PROPOSED / ZIP EXPORT NOT IMPLEMENTED — PENDING FINAL SIGN-OFF**
+
+ZIP export is not implemented. Planned export content includes the manifest,
+original raw bytes, Merkle proofs, the signed batch commitment, and chain
+metadata. The final manifest schema and fixture layout remain pending.
+
+For the planned integrity design, the manifest may hash included bundle members
+except itself to avoid circular hashing. The exact manifest hash convention,
+member names, ZIP layout, and file metadata are not approved and must not be
+invented as an implementation contract.
+
+The transport may expose a manifest JSON response with a bundle download URL
+only if Person 2 defines and approves an explicit integrity binding.
 
 ```json
 {
