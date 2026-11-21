@@ -1,7 +1,7 @@
 import type { DashboardAdapter } from '../types';
 import { readDashboardConfig, type DashboardConfig } from './config';
 import { createLiveDashboardAdapter } from './liveDashboardAdapter';
-import type { LiveDashboardState } from './liveDashboardAdapter';
+import type { LiveDashboardAdapter } from './liveDashboardAdapter';
 import { mockAdapter } from './mockAdapter';
 
 export type DashboardDataSource =
@@ -13,7 +13,7 @@ export type DashboardDataSource =
   | {
       mode: 'live';
       config: DashboardConfig;
-      adapter: DashboardAdapter & { getLiveState: () => LiveDashboardState };
+      adapter: LiveDashboardAdapter;
     };
 
 export function createDashboardDataSource(

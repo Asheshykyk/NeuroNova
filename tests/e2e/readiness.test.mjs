@@ -11,12 +11,15 @@ test('dashboard remains in demo-safe mode in source defaults', async () => {
   assert.match(source, /=== 'live' \? 'live' : 'demo'/);
 });
 
-test('live adapter does not contain backend read mappings', async () => {
+test('LIVE adapter wires supported Vault GET routes without push or recovery endpoints', async () => {
   const adapter = await readFile(
     new URL('../../apps/dashboard/src/data/liveDashboardAdapter.ts', import.meta.url),
     'utf8',
   );
 
-  assert.doesNotMatch(adapter, /fetch\(|new WebSocket\(/);
-  assert.match(adapter, /Person 2 has not approved live REST\/WebSocket response mappings/);
+  for (const route of ['sources', 'events', 'batches', 'gaps']) {
+    assert.ok(adapter.includes(`list('/${route}',`));
+  }
+  assert.match(adapter, /\/events\/\$\{encodeURIComponent\(sourceId\)\}\/\$\{encodeURIComponent\(vaultSequence\)\}/);
+  assert.doesNotMatch(adapter, /new WebSocket\(|wsEndpoint|['"`]\/(checkpoints|recovery|ws)['"`]/);
 });
