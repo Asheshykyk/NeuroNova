@@ -100,6 +100,23 @@ export function runAgentChunkTests(): void {
   const hbValid = verifyAgentHeartbeat(hbVector.heartbeat, hbSigHex, pair.publicKey);
   assert.equal(hbValid, true, 'Heartbeat signature must verify successfully');
 
+  // 9. fileGeneration alias & terminating LF validation
+  const chunkWithLf = {
+    sourceId: 'host-agent-cyprus-01',
+    deliveryId: '550e8400-e29b-41d4-a716-446655440001',
+    streamId: 'auth.log',
+    fileGeneration: 'dev:2049:ino:142857',
+    byteOffset: 1048702n,
+    observedAt: 1732145405000000000n,
+    payload: 'Nov 20 22:15:05 web-server-1 sudo: pam_unix(sudo:session): session opened for user root by admin(uid=1000)\n'
+  };
+  const sigLf = signAgentChunk(chunkWithLf, pair.privateKey);
+  assert.equal(verifyAgentChunk(chunkWithLf, sigLf, pair.publicKey), true, 'Chunk with fileGeneration and LF must verify');
+
+  // Assert altering terminating LF or payload causes verification to fail
+  const chunkStrippedLf = { ...chunkWithLf, payload: chunkWithLf.payload.trimEnd() };
+  assert.equal(verifyAgentChunk(chunkStrippedLf, sigLf, pair.publicKey), false, 'Stripping terminating LF must fail verification');
+
   // 9. Assert all 4 heartbeat tamper cases fail verification
   for (const tc of hbVector.tamperCases) {
     const isTamperedHbValid = verifyAgentHeartbeat(tc.tamperedHeartbeat, hbVector.signatureHex, pair.publicKey);
