@@ -43,3 +43,21 @@ main { min-width: 0; }.topbar { min-height: 66px; border-bottom: 1px solid #2031
 .checkpoint-status { min-width: 330px; }
 .checkpoint-status > small { color: #8395ae; }
 @media (max-width: 620px) { .checkpoint-status { min-width: 0; } }
+
+.live-verification { display: grid; gap: 18px; }
+.verification-request > p:not(.eyebrow), .verification-scope-note { color: #aebbd0; font-size: 12px; line-height: 1.55; }
+.verification-request form { display: grid; grid-template-columns: minmax(0, 1fr) minmax(150px, .35fr) auto; align-items: end; gap: 12px; margin-top: 18px; }
+.verification-request label { display: grid; gap: 7px; color: #91a2ba; font-size: 11px; }
+.verification-request input { width: 100%; min-width: 0; color: #dce6f3; border: 1px solid #2b405c; background: #0a1423; border-radius: 7px; padding: 10px; font: inherit; }
+.verification-request form button { border: 1px solid #2d7459; border-radius: 7px; padding: 10px 14px; color: #9af0c6; background: #14362b; font-size: 12px; font-weight: 700; }
+.verification-request form button:disabled { cursor: wait; opacity: .65; }
+.auditor-verdict { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; }
+.auditor-verdict > div > p:not(.eyebrow) { color: #aebbd0; line-height: 1.5; }
+.auditor-verdict .mono { overflow-wrap: anywhere; }
+.verification-stages { display: grid; gap: 8px; margin-top: 18px; }
+.verification-stage { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; border-top: 1px solid #203149; padding: 12px 0 4px; }
+.verification-stage b { color: #dce6f3; font-size: 12px; }
+.verification-stage small { display: block; margin-top: 4px; color: #ffd47b; }
+.verification-stage p { margin: 5px 0 0; color: #91a2ba; font-size: 11px; line-height: 1.45; }
+.verification-scope-note { border-top: 1px solid #203149; padding-top: 12px; margin-bottom: 0; }
+@media (max-width: 720px) { .verification-request form { grid-template-columns: 1fr; }.verification-request form button { justify-self: start; }.auditor-verdict { display: grid; } }

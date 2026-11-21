@@ -34,6 +34,18 @@ The verifier requires a Vault signer and EIP-712 domain supplied independently o
 
 The adapter currently checks a directly anchored event batch. Checking a separate Orchard aggregate checkpoint needs evidence that links the local batch to the checkpoint preimage and the approved public deployment. The shared `checkCheckpoint` helper compares a checkpoint preimage with a digest. The export adapter will also need the approved ZIP member layout, manifest validation rules, and exact representation of raw evidence and proofs.
 
+## Local Dashboard verification bridge
+
+The read-only bridge lets the LIVE Dashboard request `verify-rest` without running Node.js in browser code:
+
+```sh
+npm --prefix services/verifier run bridge
+```
+
+It listens only on `127.0.0.1:3001` and accepts `POST /api/verifier/verify-rest` from the local Dashboard origin. The request contains only `sourceId` and decimal-string `sequence`; Vault REST, local Hardhat RPC, chain, contract, and signer configuration are fixed on the server. The Dashboard Vite server proxies this route. The bridge is a local development integration, not an authenticated public service.
+
+The response scope is `vault-rest`. `VERIFIED`/`TAMPERED`/`UNVERIFIABLE` applies only to the Auditor's reported scope; Tier 2 remains separately `UNVERIFIABLE` when authenticated public-checkpoint evidence is unavailable. The endpoint is read-only and does not accept RPC URLs, credentials, or trusted deployment settings from the browser.
+
 ## Exit codes
 
 | Code | Result |

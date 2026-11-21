@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState, type ReactNode } from 'react';
 import type { CursorPage } from '../data/apiService';
 import { eventIdentity } from '../data/eventOrdering';
+import { LiveVerification } from './LiveVerification';
 import type { LiveDashboardAdapter, VaultEvent, VaultEventDetail } from '../data/liveDashboardAdapter';
 import type { ViewId } from '../types';
 import { StatusBadge } from './StatusBadge';
@@ -216,7 +217,7 @@ export function LiveDashboard({ adapter, view }: { adapter: LiveDashboardAdapter
     <section className="page">
       <LiveHeading title={title}>
         {view === 'live-feed' && <p>Live push is unavailable. Use Refresh to retrieve a new REST page.</p>}
-        {view === 'verification' && <p>Host comparison, Vault signatures, and independent RPC verification are unavailable in this Dashboard.</p>}
+        {view === 'verification' && <p>LIVE REST can request the server-side Auditor. DEMO fixtures never produce verification results.</p>}
         {view === 'recovery' && <p>Recovery status and collection-gap data are unavailable.</p>}
         {view === 'checkpoints' && <p>Public checkpoints are unavailable. Batch anchoring is server reported.</p>}
       </LiveHeading>
@@ -238,6 +239,13 @@ export function LiveDashboard({ adapter, view }: { adapter: LiveDashboardAdapter
       )}
       {view === 'checkpoints' && <Batches key={sourceId} adapter={adapter} sourceId={filter} />}
       {view === 'recovery' && <SequenceGaps key={sourceId} adapter={adapter} sourceId={filter} />}
+      {view === 'verification' && (
+        <LiveVerification
+          initialSourceId={sourceId || sources.items[0]?.sourceId || ''}
+          sourcesLoading={sources.loading}
+          sourcesError={sources.error}
+        />
+      )}
     </section>
   );
 }

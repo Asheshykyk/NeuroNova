@@ -4,7 +4,7 @@ import type { BatchCommitment } from '@trusttrace/core/types';
 import { bytes32, commitmentHash, result } from './core.js';
 import { LOCAL_VAULT_TRUST, lookupLocalBatch } from './rpc.js';
 import type { ConnectEvidenceAnchor } from './rpc.js';
-import type { ReasonCode, StageName, StageResult } from './types.js';
+import type { ReasonCode, StageName, StageResult, VerificationCheck } from './types.js';
 
 const address = /^0x[0-9a-f]{40}$/i;
 const signaturePattern = /^0x[0-9a-f]{130}$/i;
@@ -152,6 +152,15 @@ function proofGeometryMatches(proof: ReturnType<typeof readProof>, index: bigint
 
 const unavailable = (stage: StageName, reason: ReasonCode, message: string) => result(stage, message, reason, 'UNVERIFIABLE');
 
+function check(
+  name: VerificationCheck['check'],
+  status: VerificationCheck['status'],
+  message: string,
+  reasonCode?: ReasonCode,
+): VerificationCheck {
+  return { check: name, status, message, ...(reasonCode && { reasonCode }) };
+}
+
 function verifySignature(commitment: BatchCommitment | undefined, batch: Wire): StageResult {
   const stage = 'vault-signature';
   if (!commitment || batch.vaultSignature == null) {
@@ -233,11 +242,27 @@ export async function verifyRest(options: RestOptions, connect?: ConnectEvidence
     const authenticatedLeaf = authenticated
       && verifyMerkleProof(Buffer.from(proof.leafHash.slice(2), 'hex'), proof.leafIndex, proof.leafCount, proof.siblings, metadata.merkleRoot);
 
-    stages.push(payloadMatches && leafMatches
+    const rawChecks = [
+      check('payload-sha256', payloadMatches ? 'VERIFIED'
+        : authenticatedLeaf && !leafMatches ? 'TAMPERED' : 'UNVERIFIABLE',
+      payloadMatches
+        ? 'Exact raw bytes match the reported payload SHA-256.'
+        : 'Exact raw-byte SHA-256 differs from the Vault-reported payload SHA-256.',
+      payloadMatches ? undefined
+        : authenticatedLeaf && !leafMatches ? 'PAYLOAD_HASH_MISMATCH' : 'REST_INCONSISTENT'),
+      check('canonical-leaf', leafMatches ? 'VERIFIED'
+        : authenticatedLeaf ? 'TAMPERED' : 'UNVERIFIABLE',
+      leafMatches
+        ? 'Exact raw bytes reproduce the canonical v1 leaf reported by the Merkle proof.'
+        : 'Exact raw bytes do not reproduce the canonical leaf reported by the Merkle proof.',
+      leafMatches ? undefined : authenticatedLeaf ? 'PAYLOAD_HASH_MISMATCH' : 'REST_INCONSISTENT'),
+    ];
+    const rawValidation = payloadMatches && leafMatches
       ? result('raw-byte-validation', 'Exact payload SHA-256 and canonical v1 leaf match the reported values.')
       : authenticatedLeaf && !leafMatches
         ? result('raw-byte-validation', 'Raw bytes do not reproduce the leaf authenticated by the signed root.', 'PAYLOAD_HASH_MISMATCH', 'TAMPERED')
-        : unavailable('raw-byte-validation', 'REST_INCONSISTENT', 'Raw bytes disagree with reported payload or leaf metadata.'));
+        : unavailable('raw-byte-validation', 'REST_INCONSISTENT', 'Raw bytes disagree with reported payload or leaf metadata.');
+    stages.push({ ...rawValidation, checks: rawChecks });
     stages.push(proofMatches && leafMatches
       ? result('merkle-verification', 'Canonical leaf and inclusion proof match the independently fetched local batch root.')
       : authenticated && !proofMatches

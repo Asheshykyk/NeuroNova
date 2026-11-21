@@ -38,11 +38,21 @@ export type StageName =
   | 'vault-signature'
   | 'direct-rpc';
 
+export type CheckName = 'payload-sha256' | 'canonical-leaf';
+
+export interface VerificationCheck {
+  check: CheckName;
+  status: VerificationStatus;
+  reasonCode?: ReasonCode;
+  message: string;
+}
+
 export interface StageResult {
   stage: StageName;
   status: VerificationStatus;
   reasonCode?: ReasonCode;
   message: string;
+  checks?: VerificationCheck[];
 }
 
 export interface VerificationResult {

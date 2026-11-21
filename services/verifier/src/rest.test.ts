@@ -72,6 +72,10 @@ describe('REST Auditor', () => {
     for (const stage of ['vault-signature', 'raw-byte-validation', 'merkle-verification', 'commitment-matching']) {
       expect(statusOf(result, stage)?.status).toBe('VERIFIED');
     }
+    expect(statusOf(result, 'raw-byte-validation')?.checks).toEqual([
+      expect.objectContaining({ check: 'payload-sha256', status: 'VERIFIED' }),
+      expect.objectContaining({ check: 'canonical-leaf', status: 'VERIFIED' }),
+    ]);
     expect(statusOf(result, 'direct-rpc')?.reasonCode).toBe('CONTRACT_LOOKUP_UNAVAILABLE');
     expect(result).toMatchObject({ status: 'UNVERIFIABLE', reasonCode: 'REQUIRED_EVIDENCE_MISSING',
       tier2: { status: 'UNVERIFIABLE', reasonCode: 'REQUIRED_EVIDENCE_MISSING' } });
@@ -161,6 +165,20 @@ describe('REST Auditor', () => {
     const result = await verifyRest(options);
     expect(result.tier1.reasonCode).toBe('REST_RESPONSE_INVALID');
     expect(result.status).toBe('UNVERIFIABLE');
+  });
+
+  it('reports an unavailable Vault REST backend without producing an integrity verdict', async () => {
+    vi.stubGlobal('fetch', vi.fn(async () => {
+      throw new Error('connection refused');
+    }));
+    const result = await verifyRest(options);
+    expect(result).toMatchObject({
+      status: 'UNVERIFIABLE',
+      tier1: {
+        status: 'UNVERIFIABLE',
+        stages: [expect.objectContaining({ stage: 'rest-fetch', reasonCode: 'REST_UNAVAILABLE' })],
+      },
+    });
   });
 
   it('keeps a claimed anchor unverifiable when RPC is unavailable', async () => {
