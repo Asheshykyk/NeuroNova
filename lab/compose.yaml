@@ -1,0 +1,40 @@
+services:
+  victim:
+    build:
+      context: ./victim
+    environment:
+      LAB_SSH_PASSWORD: ${LAB_SSH_PASSWORD:?LAB_SSH_PASSWORD must be set}
+    healthcheck:
+      test: ["CMD-SHELL", "test -f /var/log/auth.log"]
+      interval: 1s
+      timeout: 1s
+      retries: 30
+    ports:
+      - "127.0.0.1:2222:22"
+    volumes:
+      - victim_logs:/var/log
+
+  agent:
+    build:
+      context: ..
+      dockerfile: services/agent/Dockerfile
+    depends_on:
+      victim:
+        condition: service_healthy
+    environment:
+      AGENT_SOURCE_ID: ${AGENT_SOURCE_ID:?AGENT_SOURCE_ID must be set}
+      AGENT_STREAM_ID: ${AGENT_STREAM_ID:?AGENT_STREAM_ID must be set}
+      AGENT_FILE_IDENTITY: ${AGENT_FILE_IDENTITY:?AGENT_FILE_IDENTITY must be set}
+      VAULT_BASE_URL: ${VAULT_BASE_URL:?VAULT_BASE_URL must be set}
+      AUTH_LOG_PATH: /var/log/auth.log
+      AGENT_STATE_DIR: /var/lib/trusttrace-agent
+      AGENT_POLL_INTERVAL_MS: ${AGENT_POLL_INTERVAL_MS:-250}
+      HEARTBEAT_INTERVAL_MS: ${HEARTBEAT_INTERVAL_MS:-5000}
+      AGENT_RETRY_DELAY_MS: ${AGENT_RETRY_DELAY_MS:-1000}
+    volumes:
+      - victim_logs:/var/log:ro
+      - agent_state:/var/lib/trusttrace-agent
+
+volumes:
+  victim_logs:
+  agent_state:
