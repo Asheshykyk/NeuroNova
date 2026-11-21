@@ -1,4 +1,5 @@
 import { useState, type ReactNode } from 'react';
+import { LiveDashboard } from './components/LiveDashboard';
 import { Navigation } from './components/Navigation';
 import { StatusBadge } from './components/StatusBadge';
 import { createDashboardDataSource, type DashboardDataSource } from './data/source';
@@ -14,7 +15,7 @@ function formatTime(value?: string) {
 function ModeTag({ mode }: { mode: DashboardDataSource['mode'] }) {
   return mode === 'demo'
     ? <span className="demo-tag">DEMO DATA</span>
-    : <span className="mode-tag pending-mode-tag">LIVE MODE · NOT CONNECTED</span>;
+    : <span className="mode-tag pending-mode-tag">LIVE REST</span>;
 }
 
 function PageHeading({
@@ -60,21 +61,7 @@ function StatePanel({
   );
 }
 
-function LiveUnavailable({ source }: { source: Extract<DashboardDataSource, { mode: 'live' }> }) {
-  const state = source.adapter.getLiveState();
-  return (
-    <StatePanel
-      state={state.viewState}
-      title={state.configError ? 'Live backend is not configured' : 'Live read contracts are pending'}
-    >
-      <p>{state.configError ?? state.contractError}</p>
-      <p>
-        Transport: {state.transportState}. Proposed WebSocket target {state.proposedWebSocketPath};
-        no connection or data replay is active.
-      </p>
-    </StatePanel>
-  );
-}
+type DemoSource = Extract<DashboardDataSource, { mode: 'demo' }>;
 
 function Metric({ mode, label, value, note }: {
   mode: DashboardDataSource['mode'];
@@ -145,7 +132,7 @@ function EventTable({
         </tbody>
       </table>
       <p className="table-footnote">
-        {mode === 'demo' ? 'Static fixture data; not a live feed.' : 'No live records are rendered.'}
+        Static fixture data; not a live feed.
       </p>
     </div>
   );
@@ -155,33 +142,32 @@ function Overview({
   source,
   onNavigate,
 }: {
-  source: DashboardDataSource;
+  source: DemoSource;
   onNavigate: (view: ViewId) => void;
 }) {
   const events = source.adapter.getEvents();
   const checkpoints = source.adapter.getCheckpoints();
   const gaps = source.adapter.getCollectionGaps();
-  const demo = source.mode === 'demo';
   const metrics = [
     {
       label: 'Vault-persisted events',
-      value: demo ? String(events.filter((event) => event.vaultPersistenceStatus === 'VAULT_PERSISTED').length) : '—',
-      note: demo ? 'Fixture records only' : 'Read API not implemented',
+      value: String(events.filter((event) => event.vaultPersistenceStatus === 'VAULT_PERSISTED').length),
+      note: 'Fixture records only',
     },
     {
       label: 'Public anchor reports',
-      value: demo ? String(checkpoints.filter((item) => item.publicAnchorStatus === 'ANCHORED_SERVER_REPORTED').length) : '—',
-      note: demo ? 'Server-reported status; not RPC verified' : 'Read API not implemented',
+      value: String(checkpoints.filter((item) => item.publicAnchorStatus === 'ANCHORED_SERVER_REPORTED').length),
+      note: 'Server-reported status; not RPC verified',
     },
     {
       label: 'RPC-verified commitments',
-      value: demo ? String(checkpoints.filter((item) => item.independentVerificationStatus === 'RPC_VERIFIED').length) : '—',
-      note: demo ? 'No independent result in this fixture' : 'No live verification result',
+      value: String(checkpoints.filter((item) => item.independentVerificationStatus === 'RPC_VERIFIED').length),
+      note: 'No independent result in this fixture',
     },
     {
       label: 'Collection gaps',
-      value: demo ? String(gaps.length) : '—',
-      note: demo ? 'Separate from evidence integrity' : 'Read API not implemented',
+      value: String(gaps.length),
+      note: 'Separate from evidence integrity',
     },
   ];
 
@@ -191,10 +177,8 @@ function Overview({
         mode={source.mode}
         kicker="Operational picture"
         title="Security evidence at a glance"
-        description={demo
-          ? 'All displayed records and statuses are DEMO fixtures. No backend, WebSocket, or direct RPC result is connected.'
-          : 'Live mode is selected, but read APIs and WebSocket contracts are not implemented or mapped.'}
-        state={source.mode === 'demo' ? 'disconnected' : source.adapter.getLiveState().viewState}
+        description="All displayed records and statuses are DEMO fixtures. No backend, WebSocket, or direct RPC result is connected."
+        state="disconnected"
       />
       <div className="metric-grid">
         {metrics.map((metric) => (
@@ -207,9 +191,7 @@ function Overview({
             <div><p className="eyebrow">Latest evidence</p><h2>Event metadata</h2></div>
             <button className="text-button" onClick={() => onNavigate('live-feed')}>View feed</button>
           </div>
-          {demo
-            ? <EventTable events={events.slice(0, 4)} mode={source.mode} />
-            : <LiveUnavailable source={source} />}
+          <EventTable events={events.slice(0, 4)} mode={source.mode} />
         </article>
         <article className="panel boundary">
           <p className="eyebrow">Evidence boundary</p>
@@ -228,32 +210,24 @@ function Overview({
   );
 }
 
-function LiveFeed({ source }: { source: DashboardDataSource }) {
+function LiveFeed({ source }: { source: DemoSource }) {
   return (
     <section className="page">
       <PageHeading
         mode={source.mode}
         kicker="Live transport"
         title="Live evidence feed"
-        description={source.mode === 'demo'
-          ? 'The feed is disconnected in demo mode; records below are static fixtures.'
-          : 'The WebSocket server and read APIs are not implemented. No live notifications are shown.'}
-        state={source.mode === 'demo' ? 'disconnected' : source.adapter.getLiveState().viewState}
+        description="The feed is disconnected in demo mode; records below are static fixtures."
+        state="disconnected"
       />
-      {source.mode === 'live'
-        ? <LiveUnavailable source={source} />
-        : (
-          <>
-            <StatePanel state="disconnected" title="DEMO feed is not a live stream">
-              <p>Proposed target /api/v1/ws is not connected.</p>
-              <p>No event.persisted notifications are fabricated from fixture data.</p>
-            </StatePanel>
-            <article className="panel">
-              <p className="eyebrow">Static fixture records</p>
-              <EventTable events={source.adapter.getEvents()} mode={source.mode} />
-            </article>
-          </>
-        )}
+      <StatePanel state="disconnected" title="DEMO feed is not a live stream">
+        <p>Proposed target /api/v1/ws is not connected.</p>
+        <p>No event.persisted notifications are fabricated from fixture data.</p>
+      </StatePanel>
+      <article className="panel">
+        <p className="eyebrow">Static fixture records</p>
+        <EventTable events={source.adapter.getEvents()} mode={source.mode} />
+      </article>
     </section>
   );
 }
@@ -300,7 +274,7 @@ function WitnessDetails({ details }: { details: Array<{ label: string; value?: s
   );
 }
 
-function Verification({ source }: { source: DashboardDataSource }) {
+function Verification({ source }: { source: DemoSource }) {
   const snapshot = source.adapter.getVerification();
   if (!snapshot) {
     return (
@@ -310,11 +284,9 @@ function Verification({ source }: { source: DashboardDataSource }) {
           kicker="Witness comparison"
           title="Host / Vault / Blockchain"
           description="No live verification response schema is available."
-          state={source.mode === 'live' ? source.adapter.getLiveState().viewState : 'empty'}
+          state="empty"
         />
-        {source.mode === 'live'
-          ? <LiveUnavailable source={source} />
-          : <StatePanel state="empty" title="No verification snapshot">No fixture snapshot is available.</StatePanel>}
+        <StatePanel state="empty" title="No verification snapshot">No fixture snapshot is available.</StatePanel>
       </section>
     );
   }
@@ -360,7 +332,7 @@ function Verification({ source }: { source: DashboardDataSource }) {
   );
 }
 
-function Explorer({ source }: { source: DashboardDataSource }) {
+function Explorer({ source }: { source: DemoSource }) {
   const events = source.adapter.getEvents();
   const [selectedEventId, setSelectedEventId] = useState(
     () => events.find((event) => event.demo?.hostComparison)?.eventId ?? events[0]?.eventId,
@@ -375,11 +347,9 @@ function Explorer({ source }: { source: DashboardDataSource }) {
           kicker="Evidence inspection"
           title="Evidence explorer"
           description="Raw evidence is not part of event metadata responses."
-          state={source.mode === 'live' ? source.adapter.getLiveState().viewState : 'empty'}
+          state="empty"
         />
-        {source.mode === 'live'
-          ? <LiveUnavailable source={source} />
-          : <StatePanel state="empty" title="No event metadata">No fixture records are available.</StatePanel>}
+        <StatePanel state="empty" title="No event metadata">No fixture records are available.</StatePanel>
       </section>
     );
   }
@@ -444,22 +414,7 @@ function Explorer({ source }: { source: DashboardDataSource }) {
   );
 }
 
-function Recovery({ source }: { source: DashboardDataSource }) {
-  if (source.mode === 'live') {
-    return (
-      <section className="page">
-        <PageHeading
-          mode={source.mode}
-          kicker="Recovery & continuity"
-          title="Preservation after host change"
-          description="Collection-gap data is not connected."
-          state={source.adapter.getLiveState().viewState}
-        />
-        <LiveUnavailable source={source} />
-      </section>
-    );
-  }
-
+function Recovery({ source }: { source: DemoSource }) {
   const gaps = source.adapter.getCollectionGaps();
   const affectedEvent = source.adapter.getEvents().find((event) => event.demo?.hostComparison);
   return (
@@ -501,22 +456,7 @@ function Recovery({ source }: { source: DashboardDataSource }) {
   );
 }
 
-function Checkpoints({ source }: { source: DashboardDataSource }) {
-  if (source.mode === 'live') {
-    return (
-      <section className="page">
-        <PageHeading
-          mode={source.mode}
-          kicker="Blockchain commitments"
-          title="Checkpoint status"
-          description="Checkpoint read APIs are not implemented."
-          state={source.adapter.getLiveState().viewState}
-        />
-        <LiveUnavailable source={source} />
-      </section>
-    );
-  }
-
+function Checkpoints({ source }: { source: DemoSource }) {
   const checkpoints = source.adapter.getCheckpoints();
   return (
     <section className="page">
@@ -570,7 +510,7 @@ function View({
   onNavigate,
 }: {
   activeView: ViewId;
-  source: DashboardDataSource;
+  source: DemoSource;
   onNavigate: (view: ViewId) => void;
 }) {
   if (activeView === 'live-feed') return <LiveFeed source={source} />;
@@ -582,10 +522,12 @@ function View({
 }
 
 export default function App({
-  dataSource = createDashboardDataSource(),
+  dataSource: suppliedSource,
 }: {
   dataSource?: DashboardDataSource;
 } = {}) {
+  const [defaultSource] = useState(createDashboardDataSource);
+  const dataSource = suppliedSource ?? defaultSource;
   const [activeView, setActiveView] = useState<ViewId>('overview');
   const isDemo = dataSource.mode === 'demo';
 
@@ -601,7 +543,7 @@ export default function App({
           <ModeTag mode={dataSource.mode} />
           <p>{isDemo
             ? 'Fixture data only. No API, WebSocket, or RPC connection.'
-            : 'Live mode selected; approved read contracts are not mapped.'}</p>
+            : 'Read-only Vault REST data.'}</p>
         </div>
       </aside>
       <main>
@@ -609,11 +551,13 @@ export default function App({
           <span className="source-select">All sources</span>
           <div className="topbar-status">
             <span className="pulse" aria-hidden="true" />
-            {isDemo ? 'Demo fixtures · offline' : 'Live mode · not connected'}
+            {isDemo ? 'Demo fixtures · offline' : 'Vault REST'}
             <ModeTag mode={dataSource.mode} />
           </div>
         </header>
-        <View activeView={activeView} source={dataSource} onNavigate={setActiveView} />
+        {dataSource.mode === 'live'
+          ? <LiveDashboard adapter={dataSource.adapter} view={activeView} />
+          : <View activeView={activeView} source={dataSource} onNavigate={setActiveView} />}
       </main>
     </div>
   );

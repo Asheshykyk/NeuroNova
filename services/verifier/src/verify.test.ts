@@ -99,8 +99,14 @@ describe('verification failure handling', () => {
     await expect(run([
       'verify', '--bundle', '/not-present/evidence.json', '--rpc-url', rpcUrlWithCredentials, '--json'
     ], (value) => output.push(value), () => undefined)).resolves.toBe(2);
-    const result = JSON.parse(output[0]) as { rpcUrl: string };
-    expect(result.rpcUrl).toBe('[redacted]');
+    expect(output).toHaveLength(1);
+    expect(JSON.parse(output[0])).toMatchObject({
+      status: 'UNVERIFIABLE',
+      reasonCode: 'BUNDLE_NOT_FOUND',
+      bundlePath: '/not-present/evidence.json',
+      rpcUrl: '[redacted]',
+      stages: [{ stage: 'bundle-parsing', status: 'UNVERIFIABLE', reasonCode: 'BUNDLE_NOT_FOUND' }],
+    });
     expect(output[0]).not.toContain('password');
     expect(output[0]).not.toContain('secret');
   });

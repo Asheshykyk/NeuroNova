@@ -8,9 +8,11 @@ export type ReasonCode =
   | 'BUNDLE_READ_FAILED'
   | 'BUNDLE_JSON_INVALID'
   | 'BUNDLE_SCHEMA_UNAVAILABLE'
+  | 'AGENT_CHUNK_FORMAT_INVALID'
   | 'REQUIRED_EVIDENCE_MISSING'
   | 'BUNDLE_FORMAT_UNSUPPORTED'
   | 'TRUSTED_CONFIG_MISSING'
+  | 'TRUSTED_CONFIG_INVALID'
   | 'SIGNATURE_INVALID'
   | 'CHAIN_ID_MISMATCH'
   | 'PAYLOAD_HASH_MISMATCH'
@@ -21,9 +23,13 @@ export type ReasonCode =
   | 'CONTRACT_LOOKUP_UNAVAILABLE'
   | 'RPC_UNAVAILABLE'
   | 'RPC_RESPONSE_INVALID'
+  | 'REST_UNAVAILABLE'
+  | 'REST_RESPONSE_INVALID'
+  | 'REST_INCONSISTENT'
   | 'VERIFIER_INTERNAL_ERROR';
 
 export type StageName =
+  | 'rest-fetch'
   | 'bundle-parsing'
   | 'raw-byte-validation'
   | 'merkle-verification'
@@ -32,11 +38,21 @@ export type StageName =
   | 'vault-signature'
   | 'direct-rpc';
 
+export type CheckName = 'payload-sha256' | 'canonical-leaf';
+
+export interface VerificationCheck {
+  check: CheckName;
+  status: VerificationStatus;
+  reasonCode?: ReasonCode;
+  message: string;
+}
+
 export interface StageResult {
   stage: StageName;
   status: VerificationStatus;
   reasonCode?: ReasonCode;
   message: string;
+  checks?: VerificationCheck[];
 }
 
 export interface VerificationResult {
@@ -46,6 +62,17 @@ export interface VerificationResult {
   bundlePath: string;
   rpcUrl: string;
   stages: StageResult[];
+  verifiedAt: string;
+}
+
+export interface AgentChunkVerificationResult {
+  scope: 'agent-chunk-signature-only';
+  status: VerificationStatus;
+  reasonCode?: ReasonCode;
+  message: string;
+  evidencePath: string;
+  sourceId?: string;
+  deliveryId?: string;
   verifiedAt: string;
 }
 
