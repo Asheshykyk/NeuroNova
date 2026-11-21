@@ -1,7 +1,29 @@
+import { createRequire } from 'node:module';
+import { assertCyprus1Address } from '@trusttrace/core/quai';
+
+const require = createRequire(import.meta.url);
+const deployments = require('@trusttrace/core/deployments');
+
 export interface RsyslogConfig {
   host: string;
   port: number;
   maxFrameBytes: number;
+}
+
+export interface QuaiOrchardConfig {
+  network: string;
+  displayName: string;
+  tier: string;
+  chainId: bigint;
+  zone: string;
+  shard: string;
+  rpcUrl: string;
+  fallbackRpcUrl: string;
+  explorerUrl: string;
+  contractAddress: string;
+  relayerAddress: string;
+  vaultSignerAddress: string;
+  relayerPrivateKey: string | null;
 }
 
 export interface BackendConfig {
@@ -16,6 +38,7 @@ export interface BackendConfig {
   trustedAgentPublicKeys: Map<string, string>;
   trustedAgentPublicKeyHistory: Map<string, string[]>;
   rsyslog: RsyslogConfig;
+  quai: QuaiOrchardConfig;
 }
 
 function readPort(value: string | undefined): number {
@@ -85,6 +108,47 @@ function readTrustedAgentPublicKeys(): Map<string, string> {
   return keys;
 }
 
+export function getQuaiOrchardConfig(): QuaiOrchardConfig {
+  const orchard = deployments.quai_orchard_cyprus1;
+  const relayerAddress = process.env.QUAI_RELAYER_ADDRESS?.trim() || orchard.relayerAddress;
+  const contractAddress = process.env.EVIDENCE_ANCHOR_QUAI_ADDRESS?.trim() || orchard.contractAddress;
+
+  if (relayerAddress) {
+    assertCyprus1Address(relayerAddress, 'Quai Relayer Address');
+  }
+  if (contractAddress) {
+    assertCyprus1Address(contractAddress, 'EvidenceAnchor Quai Contract Address');
+  }
+
+  return {
+    network: orchard.network,
+    displayName: orchard.displayName,
+    tier: orchard.tier,
+    chainId: BigInt(process.env.QUAI_CHAIN_ID || orchard.chainId),
+    zone: orchard.zone,
+    shard: orchard.shard,
+    rpcUrl: process.env.QUAI_ORCHARD_RPC_URL?.trim() || orchard.rpcUrl,
+    fallbackRpcUrl: orchard.fallbackRpcUrl,
+    explorerUrl: orchard.explorerUrl,
+    contractAddress,
+    relayerAddress,
+    vaultSignerAddress: orchard.vaultSignerAddress,
+    relayerPrivateKey: process.env.QUAI_RELAYER_PRIVATE_KEY?.trim() || null
+  };
+}
+
+export function verifyKeySeparation(options: {
+  vaultSignerPrivateKey?: string | null;
+  relayerPrivateKey?: string | null;
+}): boolean {
+  if (options.vaultSignerPrivateKey && options.relayerPrivateKey) {
+    if (options.vaultSignerPrivateKey.toLowerCase() === options.relayerPrivateKey.toLowerCase()) {
+      throw new Error('Key Separation Violation: Vault Signer key and Relayer key must NOT be identical');
+    }
+  }
+  return true;
+}
+
 export const config: BackendConfig = {
   host: process.env.BACKEND_HOST?.trim() || '127.0.0.1',
   port: readPort(process.env.BACKEND_PORT),
@@ -100,5 +164,6 @@ export const config: BackendConfig = {
     host: process.env.RSYSLOG_HOST?.trim() || '127.0.0.1',
     port: readPortWithName(process.env.RSYSLOG_PORT, 'RSYSLOG_PORT', 1514),
     maxFrameBytes: readPositiveInteger(process.env.RSYSLOG_MAX_FRAME_BYTES, 'RSYSLOG_MAX_FRAME_BYTES', 1024 * 1024)
-  }
+  },
+  quai: getQuaiOrchardConfig()
 };
