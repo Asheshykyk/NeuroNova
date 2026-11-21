@@ -18,6 +18,7 @@ live dashboard mappings until Person 2 signs off the final schemas.
 | `GET /api/v1/batches` | **PROPOSED — NOT IMPLEMENTED** |
 | `GET /api/v1/checkpoints` | **PROPOSED — NOT IMPLEMENTED** |
 | `GET /api/v1/gaps` | **PROPOSED — NOT IMPLEMENTED** |
+| `POST /api/v1/verify/event/:sourceId/:vaultSequence` | **PROPOSED — NOT IMPLEMENTED** |
 | WebSocket server | **NOT IMPLEMENTED** |
 | ZIP export | **NOT IMPLEMENTED** |
 
@@ -92,6 +93,8 @@ Status: **PROPOSED CONVENTIONS — PENDING IMPLEMENTATION REVIEW**
 - [ ] Approve final machine-readable `error.code` values and their mapping;
   recommended HTTP statuses are not finalized code values
 - [ ] Validation error convention for missing sourceId, invalid cursor or limit, and out-of-range sequence filters
+- [ ] Confirm gaps requests use `cursor`, responses use `nextCursor`, default
+  limit `50`, maximum limit `100`, preserving the approved stable ordering
 - [ ] Empty-result and stale-refresh behavior
 - [ ] Final confirmation of `/health` versus no `/api/v1/health`
 - [ ] Confirm deployed dashboard read APIs require authenticated access and
@@ -115,13 +118,19 @@ Status: **APPROVED — AGREED CORRECTIONS**
 
 ### 4. WebSocket envelope and recovery
 
-Status: **PROPOSED FINAL CONVENTIONS — PENDING FINAL SIGN-OFF, IMPLEMENTATION, AND SECURITY REVIEW**
+Status: **PROPOSED FINAL CONVENTIONS — PENDING FINAL PERSON 2 REVIEW, IMPLEMENTATION, AND SECURITY REVIEW**
 
 - [ ] Proposed endpoint `/api/v1/ws`; require `wss` in deployment
-- [ ] Authenticated connection using a short-lived, single-use ticket
-- [ ] Never place credentials in the WebSocket URL
+- [ ] Ticket is issued only through an authenticated REST request; issuance
+  route is intentionally unspecified
+- [ ] Ticket expires 60 seconds from issuance, is short-lived, and is single-use
+- [ ] Ticket is bound to the authenticated session
+- [ ] Ticket consumption is atomic to prevent concurrent reuse
+- [ ] Reject missing, expired, reused, invalid, and session-mismatched tickets
+- [ ] Never place long-lived credentials in the WebSocket URL
 - [ ] Explicit client subscriptions to source IDs
 - [ ] Enforce authorization for every subscribed source ID
+- [ ] Check source-level authorization before sending source-scoped notifications
 - [x] `messageId`, `occurredAt`, `type`, `sourceId`, `payload` envelope
 - [x] `messageId` deduplicates notifications, not evidence records
 - [ ] Proposed clarification: `event.persisted` is emitted only after durable
@@ -156,6 +165,18 @@ Status: **PROPOSED FINAL CONVENTIONS — PENDING IMPLEMENTATION AND SECURITY REV
 - [ ] Confirm `UNVERIFIABLE` does not mean `TAMPERED`
 - [ ] Assign `CHAIN_MISMATCH` only when trusted direct-RPC evidence establishes
   a mismatch, never merely because RPC is unavailable
+- [ ] An anchoring retry attempt alone does not change `ANCHOR_FAILED`
+- [ ] A failed or incomplete anchoring retry retains `ANCHOR_FAILED`
+- [ ] Only a new confirmed successful local anchor result changes local
+  `ANCHOR_FAILED` to `ANCHORED_SERVER_REPORTED`
+- [ ] Only a new confirmed successful public anchor result changes public
+  `ANCHOR_FAILED` to `ANCHORED_SERVER_REPORTED`
+- [ ] An independent-verification retry attempt alone does not change
+  `UNVERIFIABLE`
+- [ ] RPC failure, missing evidence, timeout, or incomplete retry does not
+  establish `CHAIN_MISMATCH`
+- [ ] Only a new completed verification result may update `UNVERIFIABLE` to
+  `RPC_VERIFIED` or `CHAIN_MISMATCH`
 - [ ] Keep public-chain commitment verification distinct from event-level
   cryptographic verification
 - [ ] Preserve verifier CLI outcomes `VERIFIED`, `TAMPERED`, and
@@ -174,7 +195,21 @@ Status: **PENDING**
 - [ ] Confirm API status values cannot be misrepresented as independent
   verification or event-level integrity results
 
-### 7. Evidence export
+### 7. Source-scoped event verification
+
+Status: **PROPOSED — NOT IMPLEMENTED — REQUEST/RESPONSE SCHEMA NOT SPECIFIED**
+
+- [ ] Proposed route is
+  `POST /api/v1/verify/event/:sourceId/:vaultSequence`
+- [ ] `vaultSequence` is unique only within a source; both `sourceId` and
+  `vaultSequence` are required to identify an event
+- [ ] Preserve the separate metadata detail route
+  `GET /api/v1/sources/:sourceId/events/:vaultSequence`
+- [ ] Keep raw-evidence retrieval separate; endpoint, authorization, and schema
+  remain pending
+- [ ] Do not add a request or response schema for the event-verification route
+
+### 8. Evidence export
 
 Status: **NOT IMPLEMENTED — PENDING SEPARATE APPROVAL**
 
@@ -196,6 +231,8 @@ Status: **NOT IMPLEMENTED — PENDING SEPARATE APPROVAL**
   approved
 - [ ] WebSocket endpoint, connection-ticket approach, source subscription
   authorization, liveness, and reconnect behavior approved
+- [ ] Source-scoped event-verification route and source-local identity reviewed;
+  request/response schema remains pending
 - [ ] Sequence and duplicate behavior approved
 - [ ] Separate status dimensions, transitions, and security review approved
 - [ ] Evidence export remains pending or is approved separately

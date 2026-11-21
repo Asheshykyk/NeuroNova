@@ -144,11 +144,16 @@ Illustrative list metadata:
 
 The final commitment also needs the contract address, chain identifier, block reference, and anchor status if those values are available from the anchoring workstream.
 
-### Verification result
+### Illustrative verification result (not an endpoint response schema)
 
 ```json
 {
-  "subject": { "kind": "event", "vaultSequence": 12, "batchId": "source-01-batch-000001" },
+  "subject": {
+    "kind": "event",
+    "sourceId": "source-01",
+    "vaultSequence": 12,
+    "batchId": "source-01-batch-000001"
+  },
   "eventVerification": {
     "origin": "verifier-cli",
     "outcome": "UNVERIFIABLE"
@@ -172,6 +177,9 @@ The final commitment also needs the contract address, chain identifier, block re
 The event verification outcome is a verifier CLI result. It is not derived from
 or replaced by `publicChainVerificationStatus`.
 
+This illustrative result is not the request or response schema for the
+proposed event-verification operation.
+
 Final API status dimensions and verifier CLI outcomes must be defined in their
 respective contracts. Any interoperability mapping requires explicit approval
 and must not collapse the separate dimensions.
@@ -191,9 +199,15 @@ The resources below are an approval proposal for Person 2. None is implemented f
 | Fetch source event detail | `GET /api/v1/sources/:sourceId/events/:vaultSequence` | proposed source-scoped event metadata; raw-byte detail route remains pending |
 | Fetch batch | `GET /api/v1/batches/:batchId` | batch detail and chain reference |
 | Verify batch | `POST /api/v1/verify/batch/:batchId` | server-reported verification run |
-| Verify event | `POST /api/v1/verify/event/:sequence` | server-reported event verification run |
+| Verify event | `POST /api/v1/verify/event/:sourceId/:vaultSequence` | proposed source-scoped verification operation; request/response schema is not defined |
 | Export bundle | `GET /api/v1/export/:batchId` | auditor download |
 | Controlled scenario | `POST /api/v1/simulations/:scenario` | demo control only if approved |
+
+**PROPOSED — NOT IMPLEMENTED:** Event verification is source-scoped:
+`POST /api/v1/verify/event/:sourceId/:vaultSequence`. `vaultSequence` is unique
+only within its source, so both `sourceId` and `vaultSequence` are required to
+identify the event. The request and response schemas for this operation are not
+specified here.
 
 The ingest operation is confirmed implemented:
 
@@ -405,8 +419,10 @@ independent direct-RPC verification result.
 
 **PROPOSED — REQUIRES PERSON 2 APPROVAL — NOT IMPLEMENTED**
 
-Filters: `sourceId`, `streamId`, `status`, `openedFrom`, `openedTo`, common
-`nextCursor` and `limit` values, and common observation-time filters.
+Filters: `sourceId`, `streamId`, `status`, `openedFrom`, `openedTo`, request
+`cursor`, and `limit` (default `50`, maximum `100`), plus common
+observation-time filters. The response uses `nextCursor` and the approved
+stable list ordering.
 
 ```json
 {
@@ -510,11 +526,18 @@ behavior.
 **PROPOSED FINAL CONVENTIONS — NOT IMPLEMENTED — PENDING IMPLEMENTATION AND SECURITY REVIEW**
 
 - Proposed endpoint: `/api/v1/ws`; deployments must use `wss`.
-- WebSocket connections require authenticated access in deployment. Use a
-  short-lived, single-use connection ticket; never put credentials in the
-  WebSocket URL.
+- WebSocket connections require authenticated access in deployment. An
+  authenticated REST request must issue a connection ticket; the issuance route
+  is not specified here.
+- Tickets expire 60 seconds after issuance, are short-lived and single-use, and
+  are bound to the authenticated session.
+- Ticket consumption must be atomic so concurrent connection attempts cannot
+  reuse one ticket. Reject missing, expired, reused, invalid, or
+  session-mismatched tickets.
+- Never put long-lived credentials in the WebSocket URL.
 - Clients explicitly subscribe to source IDs. The server must authorize every
-  subscribed source ID.
+  subscribed source ID and check source-level authorization before sending
+  source-scoped notifications.
 - `messageId` deduplicates notifications only, not evidence records.
 - Use native WebSocket ping/pong; proposed server ping interval is 30 seconds.
 - No replay or resumption is guaranteed for the first integration.
@@ -644,6 +667,12 @@ Proposed interpretation rules:
   `CHAIN_MISMATCH` or `TAMPERED`.
 - `CHAIN_MISMATCH` is allowed only when a mismatch against trusted chain
   evidence is established.
+- Starting an anchoring or verification retry does not change its status.
+- `ANCHOR_FAILED` remains until a new confirmed successful anchoring result;
+  a failed retry retains `ANCHOR_FAILED`.
+- `UNVERIFIABLE` remains until a new verification attempt completes. A retry
+  attempt or a failed/incomplete retry does not establish `CHAIN_MISMATCH`,
+  success, or tampering.
 - Public-chain commitment verification is distinct from event-level
   cryptographic verification. Do not equate `RPC_VERIFIED` with event-level
   `VERIFIED`.
@@ -660,11 +689,20 @@ an approved backend state machine:
 | Vault persistence | `PENDING` | Durable JSONL persistence fails | `PERSISTENCE_FAILED` |
 | Local Hardhat anchoring | `PENDING` | Service reports an anchor | `ANCHORED_SERVER_REPORTED` |
 | Local Hardhat anchoring | `PENDING` | Service reports anchoring failure | `ANCHOR_FAILED` |
+| Local Hardhat anchoring | `ANCHOR_FAILED` | Retry starts | `ANCHOR_FAILED` |
+| Local Hardhat anchoring | `ANCHOR_FAILED` | Retry fails or is incomplete | `ANCHOR_FAILED` |
+| Local Hardhat anchoring | `ANCHOR_FAILED` | New confirmed successful anchor result | `ANCHORED_SERVER_REPORTED` |
 | Public Quai anchoring | `PENDING` | Service reports an anchor | `ANCHORED_SERVER_REPORTED` |
 | Public Quai anchoring | `PENDING` | Service reports anchoring failure | `ANCHOR_FAILED` |
+| Public Quai anchoring | `ANCHOR_FAILED` | Retry starts | `ANCHOR_FAILED` |
+| Public Quai anchoring | `ANCHOR_FAILED` | Retry fails or is incomplete | `ANCHOR_FAILED` |
+| Public Quai anchoring | `ANCHOR_FAILED` | New confirmed successful anchor result | `ANCHORED_SERVER_REPORTED` |
 | Independent verification | `PENDING` | Direct RPC confirms the expected public commitment | `RPC_VERIFIED` |
 | Independent verification | `PENDING` | RPC or required evidence is unavailable | `UNVERIFIABLE` |
 | Independent verification | `PENDING` | Trusted direct-RPC evidence establishes a mismatch | `CHAIN_MISMATCH` |
+| Independent verification | `UNVERIFIABLE` | Retry starts, fails, or is incomplete | `UNVERIFIABLE` |
+| Independent verification | `UNVERIFIABLE` | New completed verification confirms expected commitment | `RPC_VERIFIED` |
+| Independent verification | `UNVERIFIABLE` | New completed verification establishes a trusted mismatch | `CHAIN_MISMATCH` |
 | Collection | Any | A collection interval qualifies as a gap | `COLLECTION_GAP`, independently of the other dimensions |
 
 ZIP export schema and fixture approval remain separate and pending.

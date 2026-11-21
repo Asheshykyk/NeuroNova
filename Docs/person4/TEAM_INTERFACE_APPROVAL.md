@@ -63,10 +63,15 @@ The following are proposed final conventions, not fully approved schemas or
 implemented behavior:
 
 - [ ] Proposed WebSocket endpoint `/api/v1/ws`; deployments require `wss`.
-- [ ] Authenticated WebSocket access using a short-lived, single-use connection
-  ticket; credentials must not appear in the WebSocket URL.
+- [ ] An authenticated REST request issues the connection ticket; its issuance
+  route is intentionally unspecified.
+- [ ] Tickets expire 60 seconds after issuance, are short-lived and single-use,
+  are bound to the authenticated session, and are consumed atomically to prevent
+  concurrent reuse.
+- [ ] Reject missing, expired, reused, invalid, or session-mismatched tickets.
+- [ ] Do not put long-lived credentials in the WebSocket URL.
 - [ ] Clients explicitly subscribe to source IDs; authorization is enforced for
-  every subscribed source.
+  every subscription and checked before sending source-scoped notifications.
 - [ ] Native WebSocket ping/pong, with a proposed server ping interval of 30 seconds.
 - [ ] No replay/resumption guarantee in the first integration; REST refetch after
   reconnect.
@@ -76,7 +81,21 @@ implemented behavior:
 - [ ] Dashboard REST and WebSocket access is authenticated in deployment, with
   source-level authorization; Host Agent Ed25519 authentication remains separate.
 - [ ] Proposed separate persistence, local-anchor, public-anchor, independent
-  verification, and collection status dimensions and transitions.
+  verification, and collection status dimensions and transitions; Local
+  Hardhat and public Quai anchoring remain distinct.
+- [ ] A retry attempt alone does not change status. Failed or incomplete
+  anchoring retries retain `ANCHOR_FAILED`; only a new confirmed successful
+  result changes it to `ANCHORED_SERVER_REPORTED`.
+- [ ] Failed or incomplete verification retries retain `UNVERIFIABLE`; only a
+  new completed verification result can update that status.
+- [ ] `UNVERIFIABLE`, RPC failure, or an incomplete retry does not establish
+  `CHAIN_MISMATCH`; require trusted chain evidence for that status.
+- [ ] Gaps requests use `cursor`; responses use `nextCursor`; default limit 50,
+  maximum 100, preserving the approved stable ordering.
+- [ ] Proposed event-verification route is
+  `POST /api/v1/verify/event/:sourceId/:vaultSequence`; both values identify
+  the source-local event. The endpoint remains NOT IMPLEMENTED, with no request
+  or response schema specified.
 - [ ] Ticket issuance route, TTL, consumption semantics, subscription message
   schema, dashboard identity provider, token format, error codes, and final
   transition rules remain pending implementation/security review.
@@ -136,6 +155,8 @@ implemented behavior:
 - [ ] Confirm or replace the proposed `GET /api/v1/batches` read contract.
 - [ ] Confirm or replace the proposed `GET /api/v1/checkpoints` read contract.
 - [ ] Confirm or replace the proposed `GET /api/v1/gaps` read contract.
+- [ ] Review the proposed source-scoped event-verification route and confirm
+  source-local identity; request/response schemas remain unspecified.
 - [ ] Confirm the final dashboard read routes, request parameters, source scoping, and error response shape.
 - [ ] Confirm the event, batch, verification-result, health, and evidence-detail response fields.
 - [ ] Confirm vault-assigned sequence ownership, durable-receipt acknowledgement point, reconciliation state vocabulary, and retention of raw bytes.
@@ -148,7 +169,8 @@ implemented behavior:
 - [ ] Review deployment authentication and source-level authorization for REST
   and WebSocket; decide identity provider, token format, and ticket issuance.
 - [ ] Review proposed status dimensions/transitions, including trusted
-  `CHAIN_MISMATCH` conditions and separation from verifier CLI outcomes.
+  `CHAIN_MISMATCH` conditions, retry behavior, and separation from verifier CLI
+  outcomes.
 - [ ] Confirm the exact source-scoped read route and response schema.
 - [ ] Confirm remaining reconnect/REST reconciliation details without adding a
   replay/resumption guarantee.
