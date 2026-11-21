@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState, type FormEvent } from 'react';
 import { StatusBadge } from './StatusBadge';
+import { ApiTimeoutError } from '../data/apiTransport';
 import {
   requestRestVerification,
   type AuditorRestResult,
@@ -171,7 +172,11 @@ export function LiveVerification({
       if (!requestController.signal.aborted) {
         setState({
           loading: false,
-          error: error instanceof Error ? error.message : 'Auditor verification request failed.',
+          error: error instanceof ApiTimeoutError
+            ? 'Auditor verification request timed out; no verdict was produced.'
+            : error instanceof Error && error.message
+              ? error.message
+              : 'Auditor verification request failed; no verdict was produced.',
         });
       }
     }
@@ -211,6 +216,8 @@ export function LiveVerification({
         </form>
         {sourcesLoading && <p role="status">Loading Vault sources…</p>}
         {sourcesError && <p role="alert">Source list unavailable: {sourcesError}</p>}
+        {!sourcesLoading && !sourcesError && !initialSourceId && !sourceId
+          && <p role="status">No Vault source is available; enter a source ID to verify an event.</p>}
         {state.inputError && <p role="alert">{state.inputError}</p>}
         {state.error && <p role="alert">{state.error}</p>}
         {state.loading && <p role="status">Auditor is checking this source-local event…</p>}

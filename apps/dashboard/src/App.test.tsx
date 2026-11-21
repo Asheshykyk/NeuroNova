@@ -82,12 +82,15 @@ describe('dashboard views and data boundaries', () => {
 
   it('does not render an UNVERIFIABLE demo snapshot as an Auditor tampering result', async () => {
     const user = userEvent.setup();
+    const fetch = vi.fn();
+    vi.stubGlobal('fetch', fetch);
     render(<App />);
     await user.click(screen.getByRole('button', { name: 'Three-way verification' }));
 
     expect(screen.getByText('DEMO comparison differs; this is not an Auditor CLI result.')).toBeInTheDocument();
     expect(screen.getByRole('heading', { name: 'No Auditor CLI result is loaded' })).toBeInTheDocument();
     expect(screen.queryByText('Auditor CLI · TAMPERED')).not.toBeInTheDocument();
+    expect(fetch).not.toHaveBeenCalled();
   });
 
   it('keeps collection gaps separate from event persistence', async () => {
