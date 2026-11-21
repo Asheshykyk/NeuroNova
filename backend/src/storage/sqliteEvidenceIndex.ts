@@ -1,5 +1,5 @@
 import Database from 'better-sqlite3';
-import type { EvidenceJsonlRecord } from './types.ts';
+import type { EvidenceJsonlRecord, HeartbeatJsonlRecord } from './types.ts';
 
 export interface IndexedEvidenceRecord {
   vaultSequence: bigint;
@@ -11,6 +11,7 @@ export interface IndexedEvidenceRecord {
   deliveryId: string | null;
   streamId: string | null;
   fileIdentity: string | null;
+  fileGeneration: string | null;
   byteOffset: string | null;
   observedAt: string | null;
   observationSource: 'host-agent' | 'rsyslog-tcp' | null;
@@ -34,6 +35,7 @@ export class SqliteEvidenceIndex {
         delivery_id TEXT,
         stream_id TEXT,
         file_identity TEXT,
+        file_generation TEXT,
         byte_offset TEXT,
         observed_at TEXT,
         observation_source TEXT,
@@ -52,6 +54,26 @@ export class SqliteEvidenceIndex {
         status TEXT NOT NULL,
         vault_received_at TEXT NOT NULL
       );
+
+      CREATE TABLE IF NOT EXISTS heartbeat_records (
+        heartbeat_id TEXT PRIMARY KEY,
+        source_id TEXT NOT NULL,
+        source_id_bytes32 TEXT NOT NULL,
+        heartbeat_sequence TEXT NOT NULL,
+        observed_at TEXT NOT NULL,
+        last_byte_offset TEXT NOT NULL,
+        status TEXT NOT NULL,
+        signature TEXT,
+        signed_payload_canonical TEXT NOT NULL,
+        vault_received_at TEXT NOT NULL,
+        migration_status TEXT NOT NULL,
+        original_signature_preserved INTEGER NOT NULL,
+        migrated_at TEXT,
+        migration_source TEXT
+      );
+
+      CREATE UNIQUE INDEX IF NOT EXISTS heartbeat_source_sequence
+        ON heartbeat_records(source_id_bytes32, heartbeat_sequence);
     `);
 
     const columns = this.db.prepare('PRAGMA table_info(evidence_records)').all() as Array<{ name: string }>;
@@ -59,6 +81,7 @@ export class SqliteEvidenceIndex {
     for (const [name, type] of [
       ['stream_id', 'TEXT'],
       ['file_identity', 'TEXT'],
+      ['file_generation', 'TEXT'],
       ['byte_offset', 'TEXT'],
       ['observed_at', 'TEXT'],
       ['observation_source', 'TEXT']
@@ -77,8 +100,8 @@ export class SqliteEvidenceIndex {
       INSERT INTO evidence_records (
         source_id, vault_sequence, receipt_timestamp, raw_event_length,
         segment_name, line_offset, delivery_id,
-        stream_id, file_identity, byte_offset, observed_at, observation_source
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        stream_id, file_identity, file_generation, byte_offset, observed_at, observation_source
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `);
 
     const transaction = this.db.transaction(() => {
@@ -95,6 +118,7 @@ export class SqliteEvidenceIndex {
           record.deliveryId ?? null,
           record.streamId ?? null,
           record.fileIdentity ?? null,
+          record.fileGeneration ?? null,
           record.byteOffset ?? null,
           record.observedAt ?? null,
           record.observationSource ?? null
@@ -111,7 +135,7 @@ export class SqliteEvidenceIndex {
              receipt_timestamp AS receiptTimestamp, segment_name AS segmentName,
              line_offset AS lineOffset, raw_event_length AS rawEventLength,
              delivery_id AS deliveryId, stream_id AS streamId,
-             file_identity AS fileIdentity, byte_offset AS byteOffset,
+             file_identity AS fileIdentity, file_generation AS fileGeneration, byte_offset AS byteOffset,
              observed_at AS observedAt, observation_source AS observationSource
       FROM evidence_records
       WHERE delivery_id = ?
@@ -126,6 +150,7 @@ export class SqliteEvidenceIndex {
           deliveryId: string;
           streamId: string | null;
           fileIdentity: string | null;
+          fileGeneration: string | null;
           byteOffset: string | null;
           observedAt: string | null;
           observationSource: 'host-agent' | 'rsyslog-tcp' | null;
@@ -143,6 +168,7 @@ export class SqliteEvidenceIndex {
       deliveryId: row.deliveryId,
       streamId: row.streamId,
       fileIdentity: row.fileIdentity,
+      fileGeneration: row.fileGeneration,
       byteOffset: row.byteOffset,
       observedAt: row.observedAt,
       observationSource: row.observationSource
@@ -154,8 +180,8 @@ export class SqliteEvidenceIndex {
       INSERT INTO evidence_records (
         source_id, vault_sequence, receipt_timestamp, raw_event_length,
         segment_name, line_offset, delivery_id,
-        stream_id, file_identity, byte_offset, observed_at, observation_source
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        stream_id, file_identity, file_generation, byte_offset, observed_at, observation_source
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `).run(
       record.sourceId,
       record.vaultSequence,
@@ -166,52 +192,100 @@ export class SqliteEvidenceIndex {
       record.deliveryId ?? null,
       record.streamId ?? null,
       record.fileIdentity ?? null,
+      record.fileGeneration ?? null,
       record.byteOffset ?? null,
       record.observedAt ?? null,
       record.observationSource ?? null
     );
   }
 
-  acceptHeartbeat(
-    sourceId: string,
-    heartbeatSequence: bigint,
-    observedAt: bigint,
-    lastByteOffset: bigint,
-    status: string,
-    vaultReceivedAt: string
-  ): void {
-    const row = this.db.prepare(`
-      SELECT heartbeat_sequence AS heartbeatSequence
+  acceptHeartbeatRecord(record: HeartbeatJsonlRecord): void {
+    const transaction = this.db.transaction(() => {
+      this.db.prepare(`
+        INSERT OR REPLACE INTO heartbeat_records (
+          heartbeat_id, source_id, source_id_bytes32, heartbeat_sequence,
+          observed_at, last_byte_offset, status, signature,
+          signed_payload_canonical, vault_received_at, migration_status,
+          original_signature_preserved, migrated_at, migration_source
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      `).run(
+        record.heartbeatId,
+        record.sourceId,
+        record.sourceIdBytes32,
+        record.heartbeatSequence,
+        record.observedAt,
+        record.lastByteOffset,
+        record.status,
+        record.signature,
+        record.signedPayloadCanonicalHex,
+        record.vaultReceivedAt,
+        record.migration.status,
+        record.migration.originalSignaturePreserved ? 1 : 0,
+        record.migration.migratedAt,
+        record.migration.migrationSource
+      );
+
+      this.db.prepare(`
+        INSERT INTO agent_heartbeats (
+          source_id, heartbeat_sequence, observed_at, last_byte_offset, status, vault_received_at
+        ) VALUES (?, ?, ?, ?, ?, ?)
+        ON CONFLICT(source_id) DO UPDATE SET
+          heartbeat_sequence = excluded.heartbeat_sequence,
+          observed_at = excluded.observed_at,
+          last_byte_offset = excluded.last_byte_offset,
+          status = excluded.status,
+          vault_received_at = excluded.vault_received_at
+      `).run(
+        record.sourceId,
+        record.heartbeatSequence,
+        record.observedAt,
+        record.lastByteOffset,
+        record.status,
+        record.vaultReceivedAt
+      );
+    });
+    transaction();
+  }
+
+  rebuildHeartbeatRecords(records: HeartbeatJsonlRecord[]): void {
+    const transaction = this.db.transaction(() => {
+      this.db.exec('DELETE FROM heartbeat_records; DELETE FROM agent_heartbeats');
+      for (const record of records) {
+        this.acceptHeartbeatRecord(record);
+      }
+    });
+    transaction();
+  }
+
+  getLatestHeartbeats(): Array<{
+    sourceId: string;
+    heartbeatSequence: bigint;
+    observedAt: bigint;
+    lastByteOffset: bigint;
+    status: string;
+    vaultReceivedAt: string;
+  }> {
+    const rows = this.db.prepare(`
+      SELECT source_id AS sourceId, heartbeat_sequence AS heartbeatSequence,
+             observed_at AS observedAt, last_byte_offset AS lastByteOffset,
+             status, vault_received_at AS vaultReceivedAt
       FROM agent_heartbeats
-      WHERE source_id = ?
-    `).get(sourceId) as { heartbeatSequence: string } | undefined;
-
-    const latest = row ? BigInt(row.heartbeatSequence) : 0n;
-    if (heartbeatSequence <= latest) {
-      throw new Error(`Heartbeat replay: sequence ${heartbeatSequence} is not greater than latest ${latest}`);
-    }
-    if (heartbeatSequence !== latest + 1n) {
-      throw new Error(`Heartbeat out-of-order sequence: expected ${latest + 1n}, got ${heartbeatSequence}`);
-    }
-
-    this.db.prepare(`
-      INSERT INTO agent_heartbeats (
-        source_id, heartbeat_sequence, observed_at, last_byte_offset, status, vault_received_at
-      ) VALUES (?, ?, ?, ?, ?, ?)
-      ON CONFLICT(source_id) DO UPDATE SET
-        heartbeat_sequence = excluded.heartbeat_sequence,
-        observed_at = excluded.observed_at,
-        last_byte_offset = excluded.last_byte_offset,
-        status = excluded.status,
-        vault_received_at = excluded.vault_received_at
-    `).run(
-      sourceId,
-      heartbeatSequence.toString(),
-      observedAt.toString(),
-      lastByteOffset.toString(),
-      status,
-      vaultReceivedAt
-    );
+    `).all() as Array<{
+      sourceId: string;
+      heartbeatSequence: string;
+      observedAt: string;
+      lastByteOffset: string;
+      status: string;
+      vaultReceivedAt: string;
+    }>;
+    return rows.map((row) => ({
+      sourceId: row.sourceId,
+      heartbeatSequence: BigInt(row.heartbeatSequence),
+      observedAt: BigInt(row.observedAt),
+      lastByteOffset: BigInt(row.lastByteOffset),
+      status: row.status,
+      vaultReceivedAt: row.vaultReceivedAt
+    }));
   }
 
   getHeartbeat(sourceId: string): {

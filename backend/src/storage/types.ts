@@ -6,6 +6,7 @@ export interface AppendEvidenceRequest {
   deliveryId?: string;
   streamId?: string;
   fileIdentity?: string;
+  fileGeneration?: string;
   byteOffset?: bigint;
   observedAt?: bigint;
   observationSource?: 'host-agent' | 'rsyslog-tcp';
@@ -21,6 +22,7 @@ export interface EvidenceReceipt {
   deliveryId?: string;
   streamId?: string;
   fileIdentity?: string;
+  fileGeneration?: string;
   byteOffset?: bigint;
   observedAt?: bigint;
   observationSource?: 'host-agent' | 'rsyslog-tcp';
@@ -34,6 +36,27 @@ export interface HeartbeatReceipt {
   status: string;
   vaultReceivedAt: string;
   availability: 'available' | 'unavailable';
+}
+
+export interface HeartbeatJsonlRecord {
+  recordVersion: 1;
+  recordType: 'heartbeat';
+  heartbeatId: string;
+  sourceId: string;
+  sourceIdBytes32: string;
+  heartbeatSequence: string;
+  observedAt: string;
+  lastByteOffset: string;
+  status: string;
+  signature: string | null;
+  signedPayloadCanonicalHex: string;
+  vaultReceivedAt: string;
+  migration: {
+    status: 'native' | 'migrated';
+    originalSignaturePreserved: boolean;
+    migratedAt: string | null;
+    migrationSource: string | null;
+  };
 }
 
 export interface PersistedHeartbeat {
@@ -62,6 +85,7 @@ export interface EvidenceJsonlRecord {
   deliveryId?: string;
   streamId?: string;
   fileIdentity?: string;
+  fileGeneration?: string;
   byteOffset?: string;
   observedAt?: string;
   observationSource?: 'host-agent' | 'rsyslog-tcp';

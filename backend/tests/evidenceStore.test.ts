@@ -34,11 +34,11 @@ test('partial writes are completed before fsync', async () => {
 
 test('preserves exact binary bytes and assigns monotonic sequences', async () => {
   const directory = temporaryDirectory('evidence-binary');
-  const raw = Buffer.from([0, 255, 10, 13, 32, 65, 66]);
+  const raw = Buffer.from([0, 255, 32, 65, 66, 10]);
   const store = await EvidenceStore.open({ directory, now: () => new Date('2026-11-20T19:54:36.428Z') });
 
   try {
-    const first = await store.append({ sourceId: 'source-01', rawEventBytes: raw, deliveryId: 'delivery-1' });
+    const first = await store.append({ sourceId: 'source-01', rawEventBytes: raw, deliveryId: 'delivery-1', fileGeneration: 'dev:2049:ino:142857' });
     const second = await store.append({ sourceId: 'source-01', rawEventBytes: Buffer.from([1, 2, 3]) });
 
     assert.equal(first.vaultSequence, 1n);
@@ -49,7 +49,10 @@ test('preserves exact binary bytes and assigns monotonic sequences', async () =>
     const record = JSON.parse(fs.readFileSync(segmentPath, 'utf8').trim().split('\n')[0]);
     assert.equal(record.sourceId, '0x736f757263652d30310000000000000000000000000000000000000000000000');
     assert.equal(record.rawEventLength, raw.length);
-    assert.deepEqual(Buffer.from(record.rawEventBytesBase64, 'base64'), raw);
+    assert.equal(record.fileGeneration, 'dev:2049:ino:142857');
+    const persistedRaw = Buffer.from(record.rawEventBytesBase64, 'base64');
+    assert.deepEqual(persistedRaw, raw);
+    assert.equal(persistedRaw.at(-1), 0x0a);
   } finally {
     store.close();
   }

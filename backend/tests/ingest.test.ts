@@ -41,7 +41,7 @@ function validRequest(overrides: Record<string, unknown> = {}): Record<string, u
     sourceId: chunk.sourceId,
     deliveryId: chunk.deliveryId,
     streamId: chunk.streamId,
-    fileIdentity: chunk.fileIdentity,
+    fileGeneration: chunk.fileGeneration,
     byteOffset: String(chunk.byteOffset),
     observedAt: String(chunk.observedAt),
     rawEventBase64: Buffer.from(chunk.payload, 'utf8').toString('base64'),
@@ -87,6 +87,14 @@ test('valid signed event is accepted and retried identically', async (context) =
   assert.equal(retry.status, 200);
   assert.equal(retry.json.duplicate, true);
   assert.equal(retry.json.vaultSequence, '1');
+
+  const segmentName = fs.readdirSync(directory).find((name) => /^evidence-\d{12}\.jsonl$/.test(name));
+  assert.ok(segmentName);
+  const record = JSON.parse(fs.readFileSync(path.join(directory, segmentName!), 'utf8').trim());
+  assert.equal(record.fileGeneration, vector.chunk.fileGeneration);
+  const persistedPayload = Buffer.from(record.rawEventBytesBase64, 'base64');
+  assert.deepEqual(persistedPayload, Buffer.from(vector.chunk.payload, 'utf8'));
+  assert.equal(persistedPayload.at(-1), 0x0a);
 });
 
 test('invalid and tampered signatures are rejected', async (context) => {
@@ -103,7 +111,7 @@ test('invalid and tampered signatures are rejected', async (context) => {
     ['sourceId', { sourceId: 'attacker-source-99' }],
     ['deliveryId', { deliveryId: 'f47ac10b-58cc-4372-a567-0e02b2c3d479' }],
     ['streamId', { streamId: 'syslog' }],
-    ['fileIdentity', { fileIdentity: 'inode:999999' }],
+    ['fileGeneration', { fileGeneration: 'dev:2049:ino:999999' }],
     ['byteOffset', { byteOffset: '2097152' }],
     ['observedAt', { observedAt: '1732145500000000000' }],
     ['payload', { rawEventBase64: Buffer.from('Nov 20 22:15:01 - TAMPERED', 'utf8').toString('base64') }]
@@ -147,7 +155,7 @@ test('conflicting delivery ID reuse is rejected', async (context) => {
     sourceId: vector.chunk.sourceId,
     deliveryId: vector.chunk.deliveryId,
     streamId: 'syslog',
-    fileIdentity: vector.chunk.fileIdentity,
+    fileGeneration: vector.chunk.fileGeneration,
     byteOffset: BigInt(vector.chunk.byteOffset),
     observedAt: BigInt(vector.chunk.observedAt),
     payload: Buffer.from(vector.chunk.payload, 'utf8')
@@ -215,7 +223,7 @@ test('identical retry and conflicting reuse recover after EvidenceStore restart'
     sourceId: vector.chunk.sourceId,
     deliveryId: vector.chunk.deliveryId,
     streamId: 'syslog',
-    fileIdentity: vector.chunk.fileIdentity,
+    fileGeneration: vector.chunk.fileGeneration,
     byteOffset: BigInt(vector.chunk.byteOffset),
     observedAt: BigInt(vector.chunk.observedAt),
     payload: Buffer.from(vector.chunk.payload, 'utf8')

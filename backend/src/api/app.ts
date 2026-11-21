@@ -2,10 +2,25 @@ import express, { type Express, type ErrorRequestHandler } from 'express';
 import type { EvidenceStore } from '../storage/evidenceStore.ts';
 import { createIngestHandler, type TrustedAgentPublicKeyProvider } from './ingest.ts';
 import { createHeartbeatHandler } from './heartbeat.ts';
+import type { EvidenceBatchManager } from '../batching/EvidenceBatchManager.ts';
+import type { AnchoringWorker } from '../blockchain/AnchoringWorker.ts';
+import type { EvidenceVerifier } from '../verification/EvidenceVerifier.ts';
+import {
+  createSourcesHandler,
+  createEventsHandler,
+  createEventDetailHandler,
+  createBatchesHandler,
+  createCheckpointsHandler,
+  createGapsHandler
+} from './read.ts';
 
 export interface CreateAppOptions {
   store?: EvidenceStore;
   trustedAgentPublicKeyProvider?: TrustedAgentPublicKeyProvider;
+  trustedAgentPublicKeyHistoryProvider?: (sourceId: string) => string[];
+  batchManager?: EvidenceBatchManager;
+  anchoringWorker?: AnchoringWorker;
+  verifier?: EvidenceVerifier;
 }
 
 export function createApp(options: CreateAppOptions = {}): Express {
@@ -24,8 +39,23 @@ export function createApp(options: CreateAppOptions = {}): Express {
     }));
     app.post('/api/v1/agents/heartbeat', createHeartbeatHandler({
       store: options.store,
-      trustedAgentPublicKeyProvider: keyProvider
+      trustedAgentPublicKeyProvider: keyProvider,
+      trustedAgentPublicKeyHistoryProvider: options.trustedAgentPublicKeyHistoryProvider
     }));
+
+    const readOptions = {
+      store: options.store,
+      batchManager: options.batchManager,
+      anchoringWorker: options.anchoringWorker,
+      verifier: options.verifier
+    };
+    app.get('/api/v1/sources', createSourcesHandler(readOptions));
+    app.get('/api/v1/events', createEventsHandler(readOptions));
+    app.get('/api/v1/events/:sourceId/:vaultSequence', createEventDetailHandler(readOptions));
+    app.get('/api/v1/events/:vaultSequence', createEventDetailHandler(readOptions));
+    app.get('/api/v1/batches', createBatchesHandler(readOptions));
+    app.get('/api/v1/checkpoints', createCheckpointsHandler(readOptions));
+    app.get('/api/v1/gaps', createGapsHandler(readOptions));
   }
 
   const errorHandler: ErrorRequestHandler = (error, _request, response, _next) => {
@@ -35,6 +65,9 @@ export function createApp(options: CreateAppOptions = {}): Express {
       ? (error as { statusCode?: number }).statusCode
       : 500;
     response.status(typeof statusCode === 'number' ? statusCode : 500).json({
+      code: typeof error === 'object' && error !== null && 'code' in error
+        ? String((error as { code: unknown }).code)
+        : statusCode === 400 ? 'BAD_REQUEST' : 'INTERNAL_ERROR',
       error: error instanceof Error ? error.message : 'Internal server error'
     });
   };

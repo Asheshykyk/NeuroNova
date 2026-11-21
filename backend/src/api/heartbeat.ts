@@ -7,6 +7,7 @@ export type TrustedAgentPublicKeyProvider = (sourceId: string) => string | undef
 export interface HeartbeatOptions {
   store: EvidenceStore;
   trustedAgentPublicKeyProvider: TrustedAgentPublicKeyProvider;
+  trustedAgentPublicKeyHistoryProvider?: (sourceId: string) => string[];
 }
 
 interface HeartbeatRequestBody {
@@ -74,7 +75,9 @@ export function createHeartbeatHandler(options: HeartbeatOptions) {
         status
       };
 
-      if (!verifyAgentHeartbeat(heartbeat, signature, publicKey)) {
+      const history = options.trustedAgentPublicKeyHistoryProvider?.(sourceId) ?? [];
+      const keys = Array.from(new Set([publicKey, ...history]));
+      if (!keys.some((key) => verifyAgentHeartbeat(heartbeat, signature, key))) {
         throw Object.assign(new Error('Invalid agent heartbeat signature'), { statusCode: 401 });
       }
 
@@ -84,7 +87,9 @@ export function createHeartbeatHandler(options: HeartbeatOptions) {
           heartbeatSequence,
           observedAt,
           lastByteOffset,
-          status
+          status,
+          signature,
+          publicKey
         );
 
         response.status(200).json({
