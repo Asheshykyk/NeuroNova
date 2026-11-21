@@ -152,6 +152,8 @@ export function verifyKeySeparation(options: {
 const defaultHost = process.env.NODE_ENV === 'production' || process.env.DOCKER === 'true' ? '0.0.0.0' : '127.0.0.1';
 
 export const config: BackendConfig = {
+  host: process.env.BACKEND_HOST?.trim() || (process.env.NODE_ENV === 'production' || process.env.PORT ? '0.0.0.0' : '127.0.0.1'),
+  port: readPort(process.env.PORT || process.env.BACKEND_PORT),
   host: process.env.BACKEND_HOST?.trim() || defaultHost,
   port: readPort(process.env.BACKEND_PORT),
   anchorRpcUrl: process.env.LOCAL_RPC_URL?.trim() || null,
@@ -163,6 +165,7 @@ export const config: BackendConfig = {
   trustedAgentPublicKeys: readTrustedAgentPublicKeys(),
   trustedAgentPublicKeyHistory: readTrustedAgentPublicKeyHistory(),
   rsyslog: {
+    host: process.env.RSYSLOG_HOST?.trim() || (process.env.NODE_ENV === 'production' || process.env.PORT ? '0.0.0.0' : '127.0.0.1'),
     host: process.env.RSYSLOG_HOST?.trim() || defaultHost,
     port: readPortWithName(process.env.RSYSLOG_PORT, 'RSYSLOG_PORT', 5140),
     maxFrameBytes: readPositiveInteger(process.env.RSYSLOG_MAX_FRAME_BYTES, 'RSYSLOG_MAX_FRAME_BYTES', 1024 * 1024)
