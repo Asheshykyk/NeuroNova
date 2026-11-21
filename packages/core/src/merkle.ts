@@ -254,7 +254,7 @@ export function verifyProof(
 
     // If proofOrExpectedRootOrIndex is a MerkleProof object
     if (typeof proofOrExpectedRootOrIndex === 'object' && proofOrExpectedRootOrIndex !== null && 'siblings' in proofOrExpectedRootOrIndex) {
-      const p = proofOrExpectedRootOrIndex as MerkleProof;
+      const p = proofOrExpectedRootOrIndex as unknown as MerkleProof;
       return verifyProofWithIndices(leafHash, p.siblings, expectedRoot, p.leafIndex, p.leafCount);
     }
 
