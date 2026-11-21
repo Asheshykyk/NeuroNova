@@ -126,6 +126,8 @@ export function createIngestHandler(options: IngestionOptions) {
         throw error;
       }
 
+      console.log(`[Ingest] Received signed chunk from ${sourceId} (seq ${receipt.vaultSequence}, deliveryId ${deliveryId})`);
+
       response.status(receipt.duplicate ? 200 : 201).json({
         status: 'accepted',
         sourceId,

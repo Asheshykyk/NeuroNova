@@ -13,9 +13,11 @@ export interface RsyslogEventBody {
   sourceId: string;
   streamId: string;
   fileIdentity: string;
+  fileGeneration?: string;
   byteOffset: string;
   observedAt: string;
-  rawEvent: string;
+  rawEvent?: string;
+  rawEventBase64?: string;
 }
 
 const UINT64_MAX = 0xffffffffffffffffn;
@@ -133,22 +135,31 @@ export async function processRsyslogFrame(store: EvidenceStore, body: Buffer): P
   const fileIdentity = requiredString(event.fileIdentity, 'fileIdentity');
   const byteOffset = parseDecimalUint64(event.byteOffset, 'byteOffset');
   const observedAt = parseDecimalUint64(event.observedAt, 'observedAt');
-  const rawEvent = requiredString(event.rawEvent, 'rawEvent');
 
-  const rawEventBytes = Buffer.from(rawEvent, 'utf8');
+  let rawEventBytes: Buffer;
+  if (typeof event.rawEventBase64 === 'string' && event.rawEventBase64.length > 0) {
+    rawEventBytes = Buffer.from(event.rawEventBase64, 'base64');
+  } else if (typeof event.rawEvent === 'string' && event.rawEvent.length > 0) {
+    rawEventBytes = Buffer.from(event.rawEvent, 'utf8');
+  } else {
+    throw new Error('Either rawEvent or rawEventBase64 is required and must not be empty');
+  }
+
   if (rawEventBytes.length === 0) {
     throw new Error('rawEvent must not be empty');
   }
 
-  await store.append({
+  const receipt = await store.append({
     sourceId,
     rawEventBytes,
     streamId,
     fileIdentity,
+    fileGeneration: event.fileGeneration,
     byteOffset,
     observedAt,
     observationSource: 'rsyslog-tcp'
   });
+  console.log(`[Rsyslog] Received TCP frame from ${sourceId} (seq ${receipt.vaultSequence})`);
 }
 
 export class RsyslogReceiver {

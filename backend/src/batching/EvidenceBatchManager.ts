@@ -155,6 +155,7 @@ export class EvidenceBatchManager {
           };
 
           await this.appendBatchRecord(record);
+          console.log(`[BatchManager] Created batch ${batchId} with root ${merkleRoot} (${leafHashes.length} leaves, seq ${sequenceStart}..${sequenceEnd})`);
           existing.push(record);
           created.push(record);
           for (const mapping of mappings) mapped.add(BigInt(mapping.vaultSequence));

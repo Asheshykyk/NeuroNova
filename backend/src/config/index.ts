@@ -162,7 +162,7 @@ export const config: BackendConfig = {
   trustedAgentPublicKeyHistory: readTrustedAgentPublicKeyHistory(),
   rsyslog: {
     host: process.env.RSYSLOG_HOST?.trim() || '127.0.0.1',
-    port: readPortWithName(process.env.RSYSLOG_PORT, 'RSYSLOG_PORT', 1514),
+    port: readPortWithName(process.env.RSYSLOG_PORT, 'RSYSLOG_PORT', 5140),
     maxFrameBytes: readPositiveInteger(process.env.RSYSLOG_MAX_FRAME_BYTES, 'RSYSLOG_MAX_FRAME_BYTES', 1024 * 1024)
   },
   quai: getQuaiOrchardConfig()
