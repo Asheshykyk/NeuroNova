@@ -1,0 +1,39 @@
+{
+  "quai_orchard_cyprus1": {
+    "network": "quai_orchard_cyprus1",
+    "displayName": "Quai Network Orchard Testnet (Cyprus-1 Zone)",
+    "tier": "Tier 2 Public PoW Checkpoint",
+    "chainId": 15000,
+    "zone": "cyprus-1",
+    "shard": "0x00",
+    "rpcUrl": "https://orchard.rpc.quai.network/cyprus1",
+    "fallbackRpcUrl": "https://orchard.rpc.quai.network",
+    "explorerUrl": "https://orchard.quaiscan.io",
+    "faucetUrl": "https://orchard.faucet.quai.network",
+    "contractAddress": "0x00a89d7494cb3d16858a74e5cae1a965d14df5a2",
+    "deployerAddress": "0x00Ad94833F32Ab9C8E450715E77EA5854ed8b008",
+    "relayerAddress": "0x006479b2cD168F4640d1117BcfC68496924ee9Ff",
+    "vaultSignerAddress": "0x00ec2241529f64253d1239Ce336a15f1f454e839",
+    "evmVersion": "paris",
+    "solidityVersion": "0.8.19"
+  },
+  "local_hardhat": {
+    "network": "local_hardhat",
+    "displayName": "Local Hardhat EVM (Tier 1 Fast Path)",
+    "tier": "Tier 1 High-Throughput Ingestion",
+    "chainId": 31337,
+    "rpcUrl": "http://127.0.0.1:8545",
+    "contractAddress": "0x5FbDB2315678afecb367f032d93F642f64180aa3",
+    "deployerAddress": "0xf39fd6e51aad88f6f4ce6ab8827279cfffb92266",
+    "relayerAddress": "0x70997970C51812dc3A010C7d01b50e0d17dc79C8",
+    "vaultSignerAddress": "0x3C44CdDdB6a900fa2b585dd299e03d12FA4293BC"
+  },
+  "polygon_amoy": {
+    "network": "polygon_amoy",
+    "displayName": "Polygon Amoy Testnet (Legacy Tier 2)",
+    "tier": "Tier 2 Legacy",
+    "chainId": 80002,
+    "rpcUrl": "https://rpc-amoy.polygon.technology",
+    "explorerUrl": "https://amoy.polygonscan.com"
+  }
+}

@@ -8,6 +8,7 @@ import { runMerkleTests } from './merkle.test.ts';
 import { runCommitmentTests } from './commitment.test.ts';
 import { runAgentChunkTests } from './agent.test.ts';
 import { runCheckpointTests } from './checkpoint.test.ts';
+import { runQuaiTests } from './quai.test.ts';
 
 console.log('============================================================');
 console.log('TRUSTTRACE @trusttrace/core Test Suite');
@@ -24,6 +25,8 @@ try {
   runAgentChunkTests();
   console.log('');
   runCheckpointTests();
+  console.log('');
+  runQuaiTests();
   console.log('\n============================================================');
   console.log('ALL CORE CRYPTO TESTS PASSED SUCCESSFULLY! (61/61 checks)');
   console.log('============================================================');
