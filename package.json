@@ -19,6 +19,7 @@
     "test:all": "npm run test:core && npm run test:blockchain && npm run test:backend"
   },
   "devDependencies": {
+    "quais": "^1.0.0-alpha.58",
     "typescript": "^5.4.5"
   },
   "overrides": {

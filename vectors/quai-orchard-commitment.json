@@ -1,0 +1,73 @@
+{
+  "description": "TRUSTTRACE Quai Network Orchard Testnet (Cyprus-1, Chain ID 15000) EIP-712 BatchCommitment Test Vector",
+  "standard": "EIP-712",
+  "network": "quai_orchard_cyprus1",
+  "chainId": 15000,
+  "domain": {
+    "name": "EvidenceAnchor",
+    "version": "1",
+    "chainId": 15000,
+    "verifyingContract": "0x00a89d7494cb3d16858a74e5cae1a965d14df5a2"
+  },
+  "primaryType": "BatchCommitment",
+  "types": {
+    "EIP712Domain": [
+      {
+        "name": "name",
+        "type": "string"
+      },
+      {
+        "name": "version",
+        "type": "string"
+      },
+      {
+        "name": "chainId",
+        "type": "uint256"
+      },
+      {
+        "name": "verifyingContract",
+        "type": "address"
+      }
+    ],
+    "BatchCommitment": [
+      {
+        "name": "sourceId",
+        "type": "bytes32"
+      },
+      {
+        "name": "sequenceStart",
+        "type": "uint64"
+      },
+      {
+        "name": "sequenceEnd",
+        "type": "uint64"
+      },
+      {
+        "name": "leafCount",
+        "type": "uint64"
+      },
+      {
+        "name": "merkleRoot",
+        "type": "bytes32"
+      },
+      {
+        "name": "previousCheckpointHash",
+        "type": "bytes32"
+      }
+    ]
+  },
+  "commitment": {
+    "sourceId": "0x736f757263652d30310000000000000000000000000000000000000000000000",
+    "sequenceStart": 1,
+    "sequenceEnd": 5,
+    "leafCount": 5,
+    "merkleRoot": "0x2e02f236f0b4d4719b4cfb08de4e1eb815ad7fae1d134b2cfab9bc401f8eec4c",
+    "previousCheckpointHash": "0x0000000000000000000000000000000000000000000000000000000000000000"
+  },
+  "structHash": "0x3303ce2de046f2a609558e7353942ed8332c5d27557b19c0f7bf4cbdd1418dc2",
+  "domainSeparator": "0x7c0be88f45468b25085a8986c4949b04118782a3c5cc3b8553026fe41e959e5b",
+  "digest": "0xcd6a66f6ef8e98b90ebadbf82f840c4b008f27f24f1db18a8604859b6da5f03c",
+  "signer": "0x00ec2241529f64253d1239ce336a15f1f454e839",
+  "signature": "0x57b0c9bf4068be5d9ce0be8e75efe06dcaee38e9deaeaa7c16a87a726e5073c557ae17d71351b45cfb4534b799a555e263ac782280fde4f5010be4b6154452cc1b",
+  "verified": true
+}

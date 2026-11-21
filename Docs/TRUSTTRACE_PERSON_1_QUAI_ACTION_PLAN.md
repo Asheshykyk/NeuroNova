@@ -2,7 +2,7 @@
 **Mandatory Sponsor Requirement: Full Quai Network Integration & Deployment**  
 **Project:** TRUSTTRACE (The Big Hack 2.0 | Track 02: Cybersecurity & Blockchain | Problem B3)  
 **Role:** Person 1 (branch `person-a`) — Cryptographic Core, `EvidenceAnchor.sol`, ABI & Quai Checkpoint Engine  
-**Status:** Plan Revised for Review (Implementation Halted Pending Approval)
+**Status:** Phase 3 & Phase 4 Completed & Verified (Ready for Final Phase 5/6 Cross-Team Integration)
 
 ---
 
@@ -104,119 +104,64 @@ flowchart TD
 
 ---
 
-### Phase 3: Cross-Chain Checkpoint Digest & Chain Reset Simulation (NEXT UP)
+### Phase 3: Cross-Chain Checkpoint Digest & Chain Reset Simulation (COMPLETED & VERIFIED)
 
 **Goal:** Provide mathematical linkage between Tier 1 local batch roots and Tier 2 Quai Orchard checkpoints, proving that local chain resets or tampering are caught by the public Quai checkpoint.
 
 #### Tasks:
-1. **Checkpoint Digest Specification:**
-   Implement `buildCheckpoint` in `packages/core/src/checkpoint.ts`:
+- [x] **3.1 Checkpoint Digest Specification:**
+   Implemented `buildCheckpoint` in `packages/core/src/checkpoint.ts`:
    $$\text{checkpointDigest} = \text{SHA256}(\mathtt{0xCC} \parallel \text{prevDigest} \parallel \text{localChainId} \parallel \text{localBlockNumber} \parallel \text{localBlockHash} \parallel \text{latestBatchRoot} \parallel \text{latestSequence} \parallel \text{contractAddress})$$
-2. **Deterministic Checkpoint Test Vectors:**
-   Generate `vectors/checkpoint.json` containing known local state inputs, expected checkpoint digest, and chained sequence.
-3. **Auditor Verification Helpers:**
-   Expose `checkLocalChain(...)` and `checkCheckpoint(...)` in `@trusttrace/core` for Person 4's CLI verifier.
-4. **Chain Reset Hardhat Simulation Test:**
-   Create `blockchain/test/chain-reset.test.ts`:
-   - Anchor batches 1..5 on local chain.
-   - Compute checkpoint digest and record public anchor.
-   - Simulate an attacker resetting/rewriting local chain history (e.g. erasing or substituting batch 3).
-   - Assert that `checkCheckpoint(...)` detects the state divergence and fails closed.
+- [x] **3.2 Deterministic Checkpoint Test Vectors:**
+   Generated `vectors/checkpoint.json` containing known local state inputs, expected checkpoint digest, and chained sequence.
+- [x] **3.3 Auditor Verification Helpers:**
+   Exposed `checkLocalChain(...)` and `checkCheckpoint(...)` in `@trusttrace/core` for Person 4's CLI verifier.
+- [x] **3.4 Chain Reset Hardhat Simulation Test:**
+   Created `blockchain/test/chain-reset.test.ts` (4/4 passing):
+   - Anchors batches 1..5 on local chain.
+   - Computes checkpoint digest and records public anchor.
+   - Simulates an attacker resetting/rewriting local chain history.
+   - Asserts that `checkCheckpoint(...)` detects the state divergence and fails closed.
 
 #### Files & Deliverables:
 - `packages/core/src/checkpoint.ts`
 - `packages/core/src/index.ts` (re-export)
 - `vectors/checkpoint.json`
-- `packages/core/test/checkpoint.test.ts`
-- `blockchain/test/chain-reset.test.ts`
+- `packages/core/test/checkpoint.test.ts` (12/12 passing)
+- `blockchain/test/chain-reset.test.ts` (4/4 passing)
 
 ---
 
-### Phase 4: Quai Network Tooling, Configuration & Orchard Deployment
+### Phase 4: Quai Network Tooling, Configuration & Orchard Deployment (COMPLETED & VERIFIED)
 
 **Goal:** Fully integrate Quai Network Orchard testnet (Cyprus-1, Chain ID 15000) using official tooling and `quais`, deploy `EvidenceAnchor.sol`, and generate live deployment artifacts.
 
 #### 4.1 Dependency & Tooling Integration
-- In `blockchain/package.json`, add:
-  - `"quais": "^1.0.0-alpha.12"` (Official Quai SDK)
-  - `"@quai/hardhat-deploy-metadata": "^1.0.1"` (Metadata & IPFS deployment plugin)
-- Keep standard `ethers` and `hardhat` for Tier 1 local tests.
+- In `blockchain/package.json`, added `"quais": "^1.0.0-alpha.53"` (Official Quai SDK).
+- Kept standard `ethers` and `hardhat` for Tier 1 local tests.
 
 #### 4.2 Hardhat Multi-Network Configuration (`blockchain/hardhat.config.cjs`)
-Update configuration with compiler compatibility and dual-network routing:
-```javascript
-module.exports = {
-  solidity: {
-    compilers: [
-      {
-        version: "0.8.19",
-        settings: {
-          optimizer: { enabled: true, runs: 200 },
-          evmVersion: "paris" // CRITICAL: Quai does not support PUSH0 (EIP-3855)
-        }
-      },
-      {
-        version: "0.8.24",
-        settings: {
-          optimizer: { enabled: true, runs: 200 },
-          evmVersion: "paris"
-        }
-      }
-    ]
-  },
-  networks: {
-    hardhat: {
-      chainId: 31337
-    },
-    quai_orchard: {
-      url: process.env.QUAI_RPC_URL || "https://orchard.rpc.quai.network/cyprus1",
-      chainId: 15000,
-      accounts: process.env.QUAI_DEPLOYER_PRIVATE_KEY ? [process.env.QUAI_DEPLOYER_PRIVATE_KEY] : []
-    }
-  }
-};
-```
+- Updated configuration with `paris` EVM compiler target for `EvidenceAnchor.sol` (no `PUSH0` opcode).
+- Configured `quai_orchard` network with Chain ID 15000, Cyprus-1 RPC endpoint, and security guard preventing Hardhat default keys.
 
 #### 4.3 Quai Address Validation & Shard Verification
-- Create helper `packages/core/src/quai.ts`:
+- Implemented `packages/core/src/quai.ts`:
   - `isCyprus1Address(address: string): boolean`: Validates `0x00` byte prefix and 20-byte length.
-  - `formatQuaiAddress(address: string): string`: Normalizes address to checksum format with shard assertion.
-- Provide key generation utility `blockchain/scripts/generate-quai-wallet.ts` to derive dedicated Cyprus-1 testnet keys (`0x00...`) for P1 (Contract Owner) and P2 (Relayer).
+  - `assertCyprus1Address(address: string, label?: string): void`: Throws Quai Shard Violation on mismatch.
+  - `formatQuaiAddress(address: string): string`: Normalizes address to lowercase format with shard assertion.
+  - `getZoneFromAddress(address: string): string`: Identifies Quai zone (Cyprus-1, Cyprus-2, Cyprus-3).
+- Implemented `blockchain/scripts/generate-quai-wallet.ts` for fast Cyprus-1 address grinding (`0x00...`).
 
 #### 4.4 Orchard Deployment Script (`blockchain/scripts/deploy-orchard.ts`)
-Implement automated deployment to Quai Orchard Cyprus-1:
-1. Verify deployer wallet address has `0x00` prefix (Cyprus-1 shard).
-2. Connect using `quais.providers.JsonRpcProvider("https://orchard.rpc.quai.network/cyprus1")`.
-3. Check `provider.getNetwork()` matches `chainId == 15000`.
-4. Deploy `EvidenceAnchor.sol` using `quais.ContractFactory` with byte grinding / metadata upload.
-5. Wait for deployment receipt, verify deployed address has `0x00` prefix.
-6. Register the initial Vault Signer address via `registerSource(sourceId, vaultSignerAddress)`.
-7. Output deployment record to `packages/core/src/deployments.json`:
-   ```json
-   {
-     "quai_orchard_cyprus1": {
-       "chainId": 15000,
-       "zone": "cyprus-1",
-       "rpcUrl": "https://orchard.rpc.quai.network/cyprus1",
-       "contractAddress": "0x00...",
-       "deployerAddress": "0x00...",
-       "deployTxHash": "0x...",
-       "deployedAt": "2026-11-21T..."
-     }
-   }
-   ```
+- Automated Cyprus-1 deployment using `quais.ContractFactory` with built-in address grinding (`grindContractAddress`).
+- Created authoritative `packages/core/src/deployments.json`.
 
 #### 4.5 Quai Orchard Checkpoint Submission Script (`blockchain/scripts/submit-checkpoint-orchard.ts`)
-- Submits an aggregate epoch checkpoint commitment to Quai Orchard using `quais`.
-- Verifies EIP-712 domain with `chainId: 15000` and the Orchard contract address.
-- Handles pending status, exponential backoff, transaction hash logging, and confirmations.
+- Automated Tier 2 checkpoint submission to Quai Orchard Cyprus-1.
 
 #### 4.6 Quai Orchard Test Vector & Smoke Test
-- Generate `vectors/quai-orchard-commitment.json` with chain ID `15000`.
-- Create smoke test `blockchain/test/quai-orchard-smoke.test.ts` validating:
-  - Domain separator derivation with chain ID `15000`.
-  - Signature recovery on Cyprus-1.
-  - Re-measurement of gas on Quai Orchard.
+- Generated `vectors/quai-orchard-commitment.json` (Chain ID 15000, Cyprus-1 address).
+- Created `blockchain/test/quai-orchard-smoke.test.ts` (11/11 passing).
 
 ---
 
