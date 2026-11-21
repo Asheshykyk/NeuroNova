@@ -29,6 +29,8 @@ export interface AgentChunk {
   streamId?: string;
   /** File identity (e.g. "inode:142857" or "/var/log/auth.log") (default: "") */
   fileIdentity?: string;
+  /** File generation string in dev:<device>:ino:<inode> format (canonical alias for fileIdentity) */
+  fileGeneration?: string;
   /** Monotonic byte offset within the monitored log file (default: 0n) */
   byteOffset?: bigint | number;
   /** Nanoseconds or milliseconds epoch timestamp observed by host agent (default: 0n) */
@@ -192,9 +194,10 @@ export function encodeAgentChunkPreimage(chunk: AgentChunk): Buffer {
   const streamIdLenBuf = Buffer.alloc(2);
   streamIdLenBuf.writeUInt16BE(streamIdBuf.length, 0);
 
-  const fileIdentityBuf = Buffer.from(chunk.fileIdentity ?? '', 'utf-8');
+  const fileGenStr = chunk.fileGeneration ?? chunk.fileIdentity ?? '';
+  const fileIdentityBuf = Buffer.from(fileGenStr, 'utf-8');
   if (fileIdentityBuf.length > 65535) {
-    throw new RangeError(`fileIdentity exceeds maximum length of 65535 bytes: got ${fileIdentityBuf.length}`);
+    throw new RangeError(`fileGeneration/fileIdentity exceeds maximum length of 65535 bytes: got ${fileIdentityBuf.length}`);
   }
   const fileIdentityLenBuf = Buffer.alloc(2);
   fileIdentityLenBuf.writeUInt16BE(fileIdentityBuf.length, 0);
