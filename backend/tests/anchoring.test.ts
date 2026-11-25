@@ -133,10 +133,14 @@ test('Quai Orchard deployments are read from @trusttrace/core/deployments with v
   assert.equal(quaiConfig.zone, 'cyprus-1');
   assert.equal(quaiConfig.shard, '0x00');
   assert.equal(quaiConfig.rpcUrl, 'https://orchard.rpc.quai.network/cyprus1');
-  assert.ok(quaiConfig.contractAddress.toLowerCase().startsWith('0x00'));
-  assert.ok(quaiConfig.relayerAddress.toLowerCase().startsWith('0x00'));
-  assert.doesNotThrow(() => assertCyprus1Address(quaiConfig.contractAddress, 'contractAddress'));
-  assert.doesNotThrow(() => assertCyprus1Address(quaiConfig.relayerAddress, 'relayerAddress'));
+  assert.equal(quaiConfig.contractAddress, null);
+  assert.equal(quaiConfig.relayerAddress, null);
+  assert.equal(quaiConfig.vaultSignerAddress, null);
+
+  // Verify assertCyprus1Address validation on Cyprus-1 address format
+  const validCyprus1 = '0x006479b2cD168F4640d1117BcfC68496924ee9Ff';
+  assert.doesNotThrow(() => assertCyprus1Address(validCyprus1, 'contractAddress'));
+  assert.doesNotThrow(() => assertCyprus1Address(validCyprus1, 'relayerAddress'));
 });
 
 test('strict key separation ensures Vault signer key and Relayer key are distinct', () => {

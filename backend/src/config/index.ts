@@ -1,5 +1,5 @@
 import { createRequire } from 'node:module';
-import { assertCyprus1Address } from '@trusttrace/core/quai';
+import { assertCyprus1Address, assertAddressNotCompromised } from '@trusttrace/core/quai';
 
 const require = createRequire(import.meta.url);
 const deployments = require('@trusttrace/core/deployments');
@@ -20,9 +20,9 @@ export interface QuaiOrchardConfig {
   rpcUrl: string;
   fallbackRpcUrl: string;
   explorerUrl: string;
-  contractAddress: string;
-  relayerAddress: string;
-  vaultSignerAddress: string;
+  contractAddress: string | null;
+  relayerAddress: string | null;
+  vaultSignerAddress: string | null;
   relayerPrivateKey: string | null;
 }
 
@@ -104,7 +104,15 @@ function readTrustedAgentPublicKeys(): Map<string, string> {
   }
 
   const globalKey = process.env.AGENT_PUBLIC_KEY_HEX?.trim();
-  if (globalKey) keys.set('*', globalKey);
+  if (globalKey) {
+    if (process.env.NODE_ENV === 'production') {
+      throw new Error('AGENT_PUBLIC_KEY_HEX (one shared key for all sources) is lab-only; set TRUSTED_AGENT_PUBLIC_KEYS_JSON per sourceId in production.');
+    }
+    if (process.env.ALLOW_SHARED_LAB_AGENT_KEY !== 'true') {
+      throw new Error('AGENT_PUBLIC_KEY_HEX requires ALLOW_SHARED_LAB_AGENT_KEY=true (lab only).');
+    }
+    keys.set('*', globalKey);
+  }
   return keys;
 }
 
@@ -120,11 +128,15 @@ export function getQuaiOrchardConfig(): QuaiOrchardConfig {
     assertCyprus1Address(contractAddress, 'EvidenceAnchor Quai Contract Address');
   }
 
+  const chainId = BigInt(process.env.QUAI_CHAIN_ID || orchard.chainId);
+  if (relayerAddress) assertAddressNotCompromised(relayerAddress, chainId, 'Quai relayer address');
+  if (orchard.vaultSignerAddress) assertAddressNotCompromised(orchard.vaultSignerAddress, chainId, 'Quai vault signer address');
+
   return {
     network: orchard.network,
     displayName: orchard.displayName,
     tier: orchard.tier,
-    chainId: BigInt(process.env.QUAI_CHAIN_ID || orchard.chainId),
+    chainId,
     zone: orchard.zone,
     shard: orchard.shard,
     rpcUrl: process.env.QUAI_ORCHARD_RPC_URL?.trim() || orchard.rpcUrl,
@@ -152,10 +164,8 @@ export function verifyKeySeparation(options: {
 const defaultHost = process.env.NODE_ENV === 'production' || process.env.DOCKER === 'true' ? '0.0.0.0' : '127.0.0.1';
 
 export const config: BackendConfig = {
-  host: process.env.BACKEND_HOST?.trim() || (process.env.NODE_ENV === 'production' || process.env.PORT ? '0.0.0.0' : '127.0.0.1'),
-  port: readPort(process.env.PORT || process.env.BACKEND_PORT),
   host: process.env.BACKEND_HOST?.trim() || defaultHost,
-  port: readPort(process.env.BACKEND_PORT),
+  port: readPort(process.env.PORT || process.env.BACKEND_PORT),
   anchorRpcUrl: process.env.LOCAL_RPC_URL?.trim() || null,
   anchorContractAddress: process.env.EVIDENCE_ANCHOR_LOCAL_ADDRESS?.trim() || null,
   anchorRelayerPrivateKey: process.env.LOCAL_RELAYER_PRIVATE_KEY?.trim() || null,
@@ -165,7 +175,6 @@ export const config: BackendConfig = {
   trustedAgentPublicKeys: readTrustedAgentPublicKeys(),
   trustedAgentPublicKeyHistory: readTrustedAgentPublicKeyHistory(),
   rsyslog: {
-    host: process.env.RSYSLOG_HOST?.trim() || (process.env.NODE_ENV === 'production' || process.env.PORT ? '0.0.0.0' : '127.0.0.1'),
     host: process.env.RSYSLOG_HOST?.trim() || defaultHost,
     port: readPortWithName(process.env.RSYSLOG_PORT, 'RSYSLOG_PORT', 5140),
     maxFrameBytes: readPositiveInteger(process.env.RSYSLOG_MAX_FRAME_BYTES, 'RSYSLOG_MAX_FRAME_BYTES', 1024 * 1024)
