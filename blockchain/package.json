@@ -7,7 +7,7 @@
   "scripts": {
     "compile": "hardhat compile",
     "test": "node --experimental-strip-types test/contract-standalone.test.ts",
-    "test:hardhat": "hardhat test",
+    "test:hardhat": "node --experimental-strip-types ../node_modules/hardhat/internal/cli/bootstrap.js test",
     "deploy:local": "hardhat run scripts/deploy.ts --network localhost",
     "deploy:orchard": "hardhat run scripts/deploy-orchard.ts --network quai_orchard"
   },
