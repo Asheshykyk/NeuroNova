@@ -15,10 +15,22 @@ build/
 
 # Environment and secrets (NEVER commit secrets!)
 .env
-.env.local
-.env.*.local
+.env.*
+!.env.example
+!**/.env.example
+!apps/dashboard/.env.development
+lab/.env.lab
+lab/contract-address.env
 *.pem
 *.key
+
+# Database and runtime storage
+*.sqlite
+*.sqlite3
+*.sqlite3-wal
+*.sqlite3-shm
+data/
+vault-data/
 
 # Logs
 logs/
