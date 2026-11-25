@@ -30,7 +30,8 @@ async function main() {
 
   // Resolve source ID and vault signer
   const sourceId = process.env.AGENT_SOURCE_ID?.trim() || '0x1111111111111111111111111111111111111111111111111111111111111111';
-  const vaultSignerKey = process.env.VAULT_SIGNER_PRIVATE_KEY?.trim() || '0x0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef';
+  const vaultSignerKey = process.env.VAULT_SIGNER_PRIVATE_KEY?.trim();
+  if (!vaultSignerKey) throw new Error('VAULT_SIGNER_PRIVATE_KEY is required (run: node scripts/gen-lab-env.mjs)');
   const vaultSignerAddress = ethers.computeAddress(vaultSignerKey);
 
   console.log(`Target Source ID:           ${sourceId}`);

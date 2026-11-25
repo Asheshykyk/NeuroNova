@@ -15,8 +15,8 @@ export const QUAI_ORCHARD_REGISTRY = {
   network: 'Quai Orchard Cyprus-1',
   chainId: BigInt(orchard.chainId),
   rpcUrl: orchard.rpcUrl,
-  contractAddress: orchard.contractAddress.toLowerCase(),
-  expectedVaultSigner: orchard.vaultSignerAddress,
+  contractAddress: (orchard.contractAddress as string | null)?.toLowerCase() ?? '',
+  expectedVaultSigner: (orchard.vaultSignerAddress as string | null) ?? '',
 } as const;
 
 const local = deployments.local_hardhat;
@@ -183,9 +183,13 @@ type CommitmentEvidence = Pick<BatchEvidence, 'commitment' | 'commitmentHash' | 
 
 export async function lookupBatch(evidence: CommitmentEvidence, trusted: TrustedBatchConfig, rpcUrl: string,
   connect?: ConnectEvidenceAnchor): Promise<StageResult> {
+  const contractMismatch = QUAI_ORCHARD_REGISTRY.contractAddress
+    ? trusted.domain.verifyingContract.toLowerCase() !== QUAI_ORCHARD_REGISTRY.contractAddress
+    : !trusted.domain.verifyingContract.toLowerCase().startsWith('0x00');
+
   if (trusted.domain.name !== 'EvidenceAnchor' || trusted.domain.version !== '1'
       || BigInt(trusted.domain.chainId) !== QUAI_ORCHARD_REGISTRY.chainId
-      || trusted.domain.verifyingContract.toLowerCase() !== QUAI_ORCHARD_REGISTRY.contractAddress) {
+      || contractMismatch) {
     return result('direct-rpc', 'The verifier is not configured for the trusted Quai Orchard deployment domain.', 'CHAIN_ID_MISMATCH', 'UNVERIFIABLE');
   }
   return lookupAnchoredCommitment(evidence, trusted, rpcUrl, connect);

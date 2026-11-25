@@ -13,6 +13,7 @@ import {
   createCheckpointsHandler,
   createGapsHandler
 } from './read.ts';
+import { createCorsMiddleware, createReadAuthMiddleware, resolveApiSecurity, type ApiSecurityOptions } from './security.ts';
 
 export interface CreateAppOptions {
   store?: EvidenceStore;
@@ -21,20 +22,14 @@ export interface CreateAppOptions {
   batchManager?: EvidenceBatchManager;
   anchoringWorker?: AnchoringWorker;
   verifier?: EvidenceVerifier;
+  security?: ApiSecurityOptions;
 }
 
 export function createApp(options: CreateAppOptions = {}): Express {
   const app = express();
-  app.use((_request, response, next) => {
-    response.setHeader('Access-Control-Allow-Origin', '*');
-    response.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
-    response.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With');
-    if (_request.method === 'OPTIONS') {
-      response.sendStatus(204);
-      return;
-    }
-    next();
-  });
+  const security = options.security ?? resolveApiSecurity();
+  const requireReadAuth = createReadAuthMiddleware(security);
+  app.use(createCorsMiddleware(security));
   app.use(express.json({ limit: '10mb' }));
 
   app.get('/health', (_request, response) => {
@@ -59,13 +54,13 @@ export function createApp(options: CreateAppOptions = {}): Express {
       anchoringWorker: options.anchoringWorker,
       verifier: options.verifier
     };
-    app.get('/api/v1/sources', createSourcesHandler(readOptions));
-    app.get('/api/v1/events', createEventsHandler(readOptions));
-    app.get('/api/v1/events/:sourceId/:vaultSequence', createEventDetailHandler(readOptions));
-    app.get('/api/v1/events/:vaultSequence', createEventDetailHandler(readOptions));
-    app.get('/api/v1/batches', createBatchesHandler(readOptions));
-    app.get('/api/v1/checkpoints', createCheckpointsHandler(readOptions));
-    app.get('/api/v1/gaps', createGapsHandler(readOptions));
+    app.get('/api/v1/sources', requireReadAuth, createSourcesHandler(readOptions));
+    app.get('/api/v1/events', requireReadAuth, createEventsHandler(readOptions));
+    app.get('/api/v1/events/:sourceId/:vaultSequence', requireReadAuth, createEventDetailHandler(readOptions));
+    app.get('/api/v1/events/:vaultSequence', requireReadAuth, createEventDetailHandler(readOptions));
+    app.get('/api/v1/batches', requireReadAuth, createBatchesHandler(readOptions));
+    app.get('/api/v1/checkpoints', requireReadAuth, createCheckpointsHandler(readOptions));
+    app.get('/api/v1/gaps', requireReadAuth, createGapsHandler(readOptions));
   }
 
   const errorHandler: ErrorRequestHandler = (error, _request, response, _next) => {

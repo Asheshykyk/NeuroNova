@@ -109,7 +109,7 @@ ACCEPTANCE: Run `npm --prefix backend test tests/anchoring.test.ts` and paste ou
 ```
 To P1: Phase 5a compatibility complete. Ingestion strictly matches your 8-field Ed25519 chunk preimage with fileGeneration and terminating LF intact. Quai anchoring verified against deployments.json, Cyprus-1 Chain ID 15000, 0x00 relayer address, and separate EIP-712 signer key.
 To P3: Ingest endpoint POST /api/v1/logs/ingest requires fileGeneration string. Ensure Host Agent includes fileGeneration in chunk payloads and signs the 8-field preimage. Heartbeat endpoint POST /api/v1/agents/heartbeat enforces monotonic sequence.
-To P4: REST APIs are ready for live dashboard connection. All data formats match Docs/person2/REST_API_CONTRACT.md.
+To P4: REST APIs are ready for live dashboard connection. All data formats match Docs/person2/01_REST_API_CONTRACT.md.
 ```
 
 ---

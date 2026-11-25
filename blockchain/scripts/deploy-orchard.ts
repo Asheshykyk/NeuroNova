@@ -18,6 +18,7 @@ import * as quais from 'quais';
 import {
   isCyprus1Address,
   assertCyprus1Address,
+  assertAddressNotCompromised,
   QUAI_ORCHARD_CHAIN_ID,
   QUAI_ORCHARD_CYPRUS1_RPC,
   QUAI_ORCHARD_FALLBACK_RPC,
@@ -69,6 +70,10 @@ async function main() {
   const rawKey = process.env.QUAI_DEPLOYER_PRIVATE_KEY || process.env.QUAI_PRIVATE_KEY;
   const isDryRun = process.argv.includes('--dry-run') || !rawKey;
 
+  if (!isDryRun && !process.argv.includes('--confirm-broadcast')) {
+    throw new Error('Refusing to broadcast without --confirm-broadcast');
+  }
+
   if (isDryRun) {
     console.log('\n[!] RUNNING IN VERIFICATION / DRY-RUN MODE:');
     console.log('    No live funded private key provided or --dry-run specified.');
@@ -96,14 +101,14 @@ async function main() {
 
   console.log(`Deployer Address: ${wallet.address}`);
   assertCyprus1Address(wallet.address, 'Deployer');
+  assertAddressNotCompromised(wallet.address, BigInt(QUAI_ORCHARD_CHAIN_ID), 'Deployer');
 
   // Check network connectivity
-  try {
-    const net = await provider.getNetwork();
-    console.log(`Connected to Network: ${net.name} (Chain ID: ${net.chainId})`);
-  } catch (err: any) {
-    console.warn(`[!] Primary Cyprus-1 RPC notice: ${err?.message || err}. Checking fallback...`);
+  const net = await provider.getNetwork();
+  if (BigInt(net.chainId) !== BigInt(QUAI_ORCHARD_CHAIN_ID)) {
+    throw new Error(`Wrong network: expected ${QUAI_ORCHARD_CHAIN_ID}, got ${net.chainId}`);
   }
+  console.log(`Connected to Network: ${net.name} (Chain ID: ${net.chainId})`);
 
   console.log('\nDeploying EvidenceAnchor to Quai Orchard Cyprus-1 with address grinding...');
   const factory = new quais.ContractFactory(abi, bytecode, wallet);

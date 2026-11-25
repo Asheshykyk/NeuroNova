@@ -13,10 +13,12 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { randomBytes } from 'node:crypto';
 import * as quais from 'quais';
 import {
   isCyprus1Address,
   assertCyprus1Address,
+  assertAddressNotCompromised,
   QUAI_ORCHARD_CHAIN_ID,
   QUAI_ORCHARD_CYPRUS1_RPC,
   QUAI_ORCHARD_EXPLORER_URL
@@ -44,7 +46,12 @@ async function main() {
 
   const deployments = JSON.parse(fs.readFileSync(deploymentsPath, 'utf-8'));
   const orchardConfig = deployments.quai_orchard_cyprus1;
-  const contractAddress = orchardConfig.contractAddress;
+  const configuredAddress = process.env.EVIDENCE_ANCHOR_QUAI_ADDRESS?.trim() || orchardConfig.contractAddress;
+  const isDryRun = !process.env.QUAI_RELAYER_PRIVATE_KEY || !process.env.QUAI_VAULT_SIGNER_PRIVATE_KEY || process.argv.includes('--dry-run');
+  const contractAddress = configuredAddress || (isDryRun ? '0x00a89d7494cb3d16858a74e5cae1a965d14df5a2' : null);
+  if (!contractAddress) {
+    throw new Error('EVIDENCE_ANCHOR_QUAI_ADDRESS or deployments.quai_orchard_cyprus1.contractAddress is required');
+  }
 
   console.log(`Target Contract:  ${contractAddress}`);
   assertCyprus1Address(contractAddress, 'TargetContract');
@@ -78,31 +85,37 @@ async function main() {
   const relayerKey = process.env.QUAI_RELAYER_PRIVATE_KEY;
   const vaultKey = process.env.QUAI_VAULT_SIGNER_PRIVATE_KEY;
 
-  if (!relayerKey || !vaultKey || process.argv.includes('--dry-run')) {
+  if (isDryRun) {
     console.log('\n[!] RUNNING IN DRY-RUN / SIMULATION MODE');
     console.log('    QUAI_RELAYER_PRIVATE_KEY or QUAI_VAULT_SIGNER_PRIVATE_KEY not set.');
     console.log('    Validating EIP-712 signature generation under Quai Orchard domain...\n');
 
-    // Use test vault signer key
-    const testVaultKey = '0x767c350ed0345bc6ba7b432407cff6a7401f3c4a772c2f22244dee6aa9c78852';
+    // Use ephemeral test vault signer key
+    const testVaultKey = '0x' + randomBytes(32).toString('hex'); // ephemeral, dry-run only
     const signed = signCommitment(testVaultKey, domain, commitment);
 
-    console.log(`[✓] Test Vault Signer:     ${signed.signer} (starts with 0x00: ${isCyprus1Address(signed.signer)})`);
+    console.log(`[✓] Test Vault Signer (ephemeral): ${signed.signer} (starts with 0x00: ${isCyprus1Address(signed.signer)})`);
     console.log(`[✓] EIP-712 Digest:        ${signed.digest}`);
     console.log(`[✓] EIP-712 Signature:     ${signed.signature}`);
     console.log('\nDry-run simulation complete. Checkpoint payload is ready for submission.');
     return;
   }
 
-  // Live Submission
+  // Live Submission requires explicit confirmation
+  if (!process.argv.includes('--confirm-broadcast')) {
+    throw new Error('Refusing to broadcast live transaction without --confirm-broadcast');
+  }
+
   const provider = new quais.JsonRpcProvider(QUAI_ORCHARD_CYPRUS1_RPC);
-  const relayerWallet = new quais.Wallet(relayerKey, provider);
+  const relayerWallet = new quais.Wallet(relayerKey!, provider);
   assertCyprus1Address(relayerWallet.address, 'QuaiRelayer');
+  assertAddressNotCompromised(relayerWallet.address, BigInt(QUAI_ORCHARD_CHAIN_ID), 'QuaiRelayer');
 
   console.log(`\nQuai Relayer Address: ${relayerWallet.address}`);
   console.log('Signing commitment with Vault Signer key...');
-  const signed = signCommitment(vaultKey, domain, commitment);
+  const signed = signCommitment(vaultKey!, domain, commitment);
   assertCyprus1Address(signed.signer, 'VaultSigner');
+  assertAddressNotCompromised(signed.signer, BigInt(QUAI_ORCHARD_CHAIN_ID), 'VaultSigner');
 
   const artifactPath = path.resolve(
     __dirname,

@@ -219,4 +219,4 @@ flowchart TD
 | `blockchain/scripts/submit-checkpoint-orchard.ts` | Create | Checkpoint submission script using `quais` |
 | `blockchain/test/chain-reset.test.ts` | Create | Simulates local chain history reset and asserts checkpoint detection |
 | `blockchain/test/quai-orchard-smoke.test.ts` | Create | Validates EIP-712 recovery on chain ID 15000 |
-| `Docs/TRUSTTRACE_PERSON_1_QUAI_ACTION_PLAN.md` | Create | Git-tracked team copy of this action plan |
+| `Docs/05_PERSON_1_QUAI_ACTION_PLAN.md` | Create | Git-tracked team copy of this action plan |

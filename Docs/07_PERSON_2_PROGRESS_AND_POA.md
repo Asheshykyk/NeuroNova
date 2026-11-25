@@ -21,7 +21,7 @@ Person 2 has published the main Vault/backend implementation and REST API contra
 |Batching / Merkle|Implemented; revalidate|JSONL-backed batch construction and persisted batch records were implemented.<br>Confirm payload bytes passed to encodeLeaf match the frozen 46 + N format.|
 |Quai anchoring|Integration audit pending|Existing anchoring worker/client was implemented earlier. Confirm Cyprus-1,<br>Chain ID 15000, quais SDK, deployment registry, in-zone 0x00 relayer address<br>and key separation.|
 |Verification / reconciliation|Implemented; revalidate|Evidence verification and anchor-state reconciliation were implemented. RPC<br>failures must not be misreported as chain mismatches.|
-|REST read APIs|**Published**|Sources, events, event details, batches, checkpoints and gaps endpoints. Contract<br>published at Docs/person2/REST_API_CONTRACT.md (commit 16b2b39).|
+|REST read APIs|**Published**|Sources, events, event details, batches, checkpoints and gaps endpoints. Contract<br>published at Docs/person2/01_REST_API_CONTRACT.md (commit 16b2b39).|
 |P4 dashboard integration|Pending|P4 can now pull personb and align its API service with the published contract; live<br>end-to-end test remains.|
 
 

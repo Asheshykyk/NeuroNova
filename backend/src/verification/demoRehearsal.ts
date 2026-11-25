@@ -1,6 +1,7 @@
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
+import { randomBytes } from 'node:crypto';
 import { fileURLToPath } from 'node:url';
 import {
   computeCommitmentStructHashHex,
@@ -21,6 +22,8 @@ const __dirname = path.dirname(__filename);
 const rootDir = path.resolve(__dirname, '../../..');
 const vectorPath = path.join(rootDir, 'vectors/agent-chunk.json');
 const vector = JSON.parse(fs.readFileSync(vectorPath, 'utf8'));
+
+const getRehearsalVaultSignerKey = () => process.env.VAULT_SIGNER_PRIVATE_KEY || ('0x' + randomBytes(32).toString('hex'));
 
 export class InMemoryAnchorClient implements EvidenceAnchorClient {
   private readonly anchoredBatches = new Map<string, BatchCommitment>();
@@ -102,7 +105,7 @@ export async function runScenario1_HostTamper(tempDir: string): Promise<Rehearsa
   const batchManager = new EvidenceBatchManager(store, {
     directory,
     batchMaxLeaves: 10,
-    vaultSignerPrivateKey: '0x0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef',
+    vaultSignerPrivateKey: getRehearsalVaultSignerKey(),
     eip712Domain
   });
 
@@ -193,7 +196,7 @@ export async function runScenario2_VaultTamper(tempDir: string): Promise<Rehears
   const batchManager = new EvidenceBatchManager(store, {
     directory,
     batchMaxLeaves: 10,
-    vaultSignerPrivateKey: '0x0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef',
+    vaultSignerPrivateKey: getRehearsalVaultSignerKey(),
     eip712Domain
   });
 
@@ -222,7 +225,7 @@ export async function runScenario2_VaultTamper(tempDir: string): Promise<Rehears
   const batchManager2 = new EvidenceBatchManager(store2, {
     directory,
     batchMaxLeaves: 10,
-    vaultSignerPrivateKey: '0x0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef',
+    vaultSignerPrivateKey: getRehearsalVaultSignerKey(),
     eip712Domain
   });
 

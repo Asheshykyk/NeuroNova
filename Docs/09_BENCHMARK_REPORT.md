@@ -27,8 +27,8 @@ TRUSTTRACE provides tamper-evident security logging and cryptographic witness ev
 | **Agent Attestation Signing** | **31,380 signs/sec** | Minimal CPU footprint (<0.03 ms per log burst) on host victims. |
 | **Vault Attestation Verification** | **13,913 verifies/sec** | Real-time rejection of spoofed chunks or invalid signatures. |
 | **Vault Disk Ingestion & Indexing** | **87 Events/Sec (EPS)** | Zero data loss with synchronous ACID durability and forensic indexing. |
-| **Smart Contract Batch Anchoring** | **49,120 gas flat** | Gas cost remains invariant whether batch contains 10 or 10,000 events. |
-| **Amortized Gas Cost (10,000 events)** | **4.91 gas / event** | **$0.000295 per event** at 20 Gwei ($3,000 ETH base). |
+| **Smart Contract Batch Anchoring** | **163,867 gas flat** (chained), **177,525 gas** (genesis) | Measured under Solidity 0.8.19 (paris EVM, 200 runs). |
+| **Amortized Gas Cost (10,000 events)** | **16.39 gas / event** | **$0.000983 per event** at 20 Gwei ($3,000 ETH base). |
 
 ---
 
@@ -37,10 +37,10 @@ TRUSTTRACE provides tamper-evident security logging and cryptographic witness ev
 All empirical measurements were captured on a physical workstation utilizing isolated node runtimes and automated micro-benchmark harness routines (`scripts/benchmark.ts`).
 
 - **Hardware Architecture:** Apple M-Series (Darwin arm64)
-- **Runtime Environment:** Node.js v22.12.0 with native `--experimental-strip-types`
+- **Runtime Environment:** Node.js v24 (>=22.12.0 supported) with native `--experimental-strip-types`
 - **Compiler / Target:** TypeScript 5.4.5, ES2022
 - **Cryptographic Primitives:** Native Node.js `crypto` (`createHash('sha256')`, `sign(null, chunk, privateKey)`, `verify(null, chunk, publicKey, signature)`)
-- **Smart Contract Compiler:** Solidity `0.8.24` (ViaIR enabled, 200 optimizer runs)
+- **Smart Contract Compiler:** Solidity `0.8.19` (paris EVM, 200 optimizer runs)
 - **Local EVM Simulator:** Hardhat / Ethers v6 in-process EVM emulator
 
 ```mermaid
@@ -59,7 +59,7 @@ flowchart TD
     end
 
     subgraph Blockchain Tier
-        Merkle -->|Anchor Root Hash 49,120 gas| SC[EvidenceAnchor.sol]
+        Merkle -->|Anchor Root Hash 163,867 gas| SC[EvidenceAnchor.sol]
         SC -->|Emits EvidenceAnchored| L1[Quai / EVM Ledger]
     end
 
@@ -75,10 +75,10 @@ flowchart TD
 
 ### 3.1. Canonical Leaf Preimage Serialization & Hashing
 
-In the TRUSTTRACE specification (Problem B3), every log event is normalized into a strict byte preimage before hashing to guarantee that hash collations are bit-for-bit deterministic across heterogeneous client platforms:
+In the TRUSTTRACE specification (Problem B3), every log event is serialized into the canonical preimage before hashing to guarantee that hash collations are bit-for-bit deterministic across heterogeneous client platforms:
 
-$$\text{Preimage} = \text{version (1B)} \,\|\, \text{sourceId (32B)} \,\|\, \text{vaultSequence (8B Big-Endian)} \,\|\, \text{payloadLength (4B Big-Endian)} \,\|\, \text{rawBytes (NB)}$$
-$$\text{Total Preimage Length} = 1 + 32 + 8 + 4 + N = 45 + N \text{ (or 46 + N with source length prefix)}$$
+$$\text{Preimage} = \text{domain (1B, 0x00)} \,\|\, \text{version (1B)} \,\|\, \text{sourceId (32B)} \,\|\, \text{vaultSequence (8B Big-Endian)} \,\|\, \text{payloadLength (4B Big-Endian)} \,\|\, \text{rawBytes (NB)}$$
+$$\text{Total Preimage Length} = 1 + 1 + 32 + 8 + 4 + N = 46 + N \text{ bytes}$$
 
 #### Measured Results (25,000 Canonical Events)
 - **Payload:** 113-byte authentic rsyslog message (`"CRON[5123]: pam_unix(cron:session): session opened for user root by (uid=0)"`)
@@ -171,33 +171,35 @@ function anchorBatch(
 ) external returns (uint256 batchId)
 ```
 
-#### Measured Gas Consumption:
+#### Measured Gas Consumption (Solidity 0.8.19 / Paris EVM):
 | Contract Function | Gas Cost | Operational Context |
 | :--- | :--- | :--- |
-| `registerSource(sourceId, vaultSigner)` | **47,238 gas** | One-time device registration by contract owner. |
-| `anchorBatch(...)` [Genesis Batch] | **68,514 gas** | First batch for a source (allocates storage slots). |
-| `anchorBatch(...)` [Chained Batch] | **49,120 gas** | Subsequent batches (storage slots already warm). |
-| `verifyProof(...)` [On-Chain Merkle Check] | **28,340 gas** | Complete smart contract verification of an event leaf. |
+| `registerSource(sourceId, vaultSigner)` | **53,065 gas** | One-time device registration by contract owner. |
+| `revokeSource(sourceId)` | **30,455 gas** | Source revocation by contract owner. |
+| `anchorBatch(...)` [Genesis Batch 1] | **177,525 gas** | First batch for a source (allocates storage slots). |
+| `anchorBatch(...)` [Chained Batch 2] | **163,867 gas** | Subsequent chained batches (sequence continuity verified). |
+
+*Note: Quai Orchard testnet integration is simulated in-process with Cyprus-1 addresses and domain parameters (chain ID 15000); the contract is not yet deployed to live Orchard testnet (no transaction hash). Quai USD pricing is omitted as testnet gas pricing is not market-determined.*
 
 #### Economic Amortization Analysis ($O(1)$ Blockchain Cost)
 Because TRUSTTRACE aggregates an arbitrary number of leaves ($N$) into a single 32-byte Merkle root, the blockchain transaction fee is completely flat:
 
-$$\text{Gas per Event} = \frac{49,120}{N}$$
+$$\text{Gas per Event} = \frac{163,867}{N}$$
 
-| Batch Size ($N$) | Total Gas | Gas per Event | Cost in USD (@ 20 Gwei, $3,000 ETH) | Cost in USD (@ 1 Gwei L2 / Quai) |
-| :--- | :--- | :--- | :--- | :--- |
-| **10 events** | 49,120 | 4,912.00 | $0.294720 | $0.000147 |
-| **100 events** | 49,120 | 491.20 | $0.029472 | $0.000015 |
-| **1,000 events** | 49,120 | 49.12 | $0.002947 | $0.000001 |
-| **10,000 events** | 49,120 | 4.91 | **$0.000295** | **$0.0000001** |
-| **50,000 events** | 49,120 | 0.98 | **$0.000059** | **$0.00000003** |
+| Batch Size ($N$) | Total Gas (Chained) | Gas per Event | Cost in USD (@ 20 Gwei, $3,000 ETH) |
+| :--- | :--- | :--- | :--- |
+| **10 events** | 163,867 | 16,386.70 | $0.983202 |
+| **100 events** | 163,867 | 1,638.67 | $0.098320 |
+| **1,000 events** | 163,867 | 163.87 | $0.009832 |
+| **10,000 events** | 163,867 | 16.39 | **$0.000983** |
+| **50,000 events** | 163,867 | 3.28 | **$0.000197** |
 
 ```mermaid
 xychart-beta
     title "Gas Cost per Log Event by Batch Size"
     x-axis ["10", "100", "1,000", "10,000", "50,000"]
-    y-axis "Gas / Event" 0 --> 5000
-    bar [4912, 491, 49, 5, 1]
+    y-axis "Gas / Event" 0 --> 17000
+    bar [16387, 1639, 164, 16, 3]
 ```
 
 ---
@@ -209,7 +211,7 @@ xychart-beta
 | **Local Syslog / Auditd** | ❌ Zero (attacker deletes `/var/log`) | ❌ Destroyed on root compromise | 50,000 EPS | $0.00 |
 | **Central SIEM (Splunk/ELK)** | ⚠️ Weak (admin can overwrite indexes) | ✅ Survived if network egress unblocked | 15,000 EPS | $0.00 |
 | **Naive Blockchain Logging** (1 tx / log) | ✅ Cryptographically immutable | ✅ Survives | ~15 EPS (network limit) | **$29.47 / event** (Unviable) |
-| **TRUSTTRACE (B3 Hybrid Architecture)** | **✅ Mathematically unalterable (Ed25519 + Odd-Node Merkle + L1 Anchor)** | **✅ Real-time chunking survives root kill** | **>500,000 EPS (Hash/Tree)** | **$0.000295 / event** (Economically optimal) |
+| **TRUSTTRACE (B3 Hybrid Architecture)** | **✅ Tamper-evident: we detect, prove and recover** | **✅ Real-time chunking survives root kill** | **hashing throughput 490,000 leaves/s; durable vault ingestion 87 EPS (measured)** | **$0.000983 / event (10k batch)** |
 
 ---
 

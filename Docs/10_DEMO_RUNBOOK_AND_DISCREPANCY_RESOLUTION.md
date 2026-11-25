@@ -65,12 +65,12 @@ TASK:
    - RSYSLOG_PORT (default 5140)
    - AGENT_PUBLIC_KEY_HEX (fallback wildcard '*' trusted key)
 2. Create a canonical test environment file `lab/.env.lab` containing:
-   - LAB_SSH_PASSWORD=labsecretpassword123
+   - LAB_SSH_PASSWORD=<generated-random-ssh-password-run-scripts/gen-lab-env.mjs>
    - AGENT_SOURCE_ID=0x1111111111111111111111111111111111111111111111111111111111111111
    - AGENT_STREAM_ID=auth.log
    - AGENT_FILE_IDENTITY=auth.log
    - AGENT_PUBLIC_KEY_HEX=0x1111111111111111111111111111111111111111111111111111111111111111
-   - VAULT_SIGNER_PRIVATE_KEY=0x0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef
+   - VAULT_SIGNER_PRIVATE_KEY=<generated-random-signer-key-run-scripts/gen-lab-env.mjs>
    - VAULT_BASE_URL=http://vault:3000
    - RSYSLOG_TARGET_HOST=vault
    - RSYSLOG_TARGET_PORT=5140
@@ -97,7 +97,7 @@ TASK:
 1. Create a deployment script `blockchain/scripts/deploy-local.ts` that:
    - Connects to a local JSON-RPC provider (http://127.0.0.1:8545).
    - Deploys `EvidenceAnchor.sol`.
-   - Registers the Vault Signer address derived from VAULT_SIGNER_PRIVATE_KEY (0x0123...cdef)
+   - Registers the Vault Signer address derived from VAULT_SIGNER_PRIVATE_KEY
      for AGENT_SOURCE_ID via `registerSource(sourceId, signerAddress)`.
    - Outputs the deployed contract address to `lab/contract-address.env`.
 2. Configure the backend's AnchoringWorker environment to target this local node:
@@ -148,8 +148,8 @@ TASK:
         BACKEND_PORT=3000
         RSYSLOG_HOST=0.0.0.0
         RSYSLOG_PORT=5140
-        AGENT_PUBLIC_KEY_HEX=0x1111111111111111111111111111111111111111111111111111111111111111
-        VAULT_SIGNER_PRIVATE_KEY=0x0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef
+        AGENT_PUBLIC_KEY_HEX=${AGENT_PUBLIC_KEY_HEX:?set in lab/.env.lab}
+        VAULT_SIGNER_PRIVATE_KEY=${VAULT_SIGNER_PRIVATE_KEY:?set in lab/.env.lab}
       - Mounts persistent volume `vault_data:/data/vault`.
 2. Configure Docker network `trusttrace_net` so all containers resolve each other by service name.
 3. Add a healthcheck to `vault` probing `GET http://127.0.0.1:3000/health`.

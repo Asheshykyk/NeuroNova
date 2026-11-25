@@ -1,11 +1,11 @@
 # TRUSTTRACE: Evidence That Survives Root Compromise
 
-[![Test Suite: 362/362 Passing](https://img.shields.io/badge/tests-362%2F362%20passing-brightgreen.svg)](#test-suite-and-verification)
+[![Test Suite: 421/421 Passing](https://img.shields.io/badge/tests-421%2F421%20passing-brightgreen.svg)](#test-suite-and-verification)
 [![Track: Cybersecurity & Blockchain](https://img.shields.io/badge/The%20Big%20Hack%202.0-Track%2002%20(Problem%20B3)-blue.svg)](#the-problem-statement)
 [![Blockchain: EVM & Quai Cyprus-1](https://img.shields.io/badge/Blockchain-EVM%20%7C%20Quai%20Cyprus--1-purple.svg)](#smart-contract-and-anchoring)
 [![License: UNLICENSED](https://img.shields.io/badge/license-UNLICENSED-red.svg)](package.json)
 
-> **TRUSTTRACE** establishes a tamper-evident, multi-witness security logging and cryptographic verification infrastructure designed to survive adversarial root/kernel compromise on Linux hosts.
+> **TRUSTTRACE** establishes a tamper-evident, multi-witness security logging and cryptographic verification infrastructure: we detect, prove and recover from adversarial root/kernel compromise on Linux hosts.
 
 ---
 
@@ -20,7 +20,7 @@ When an adversary obtains `root` privileges on a Linux host, local evidence is f
 We construct **three independent, mathematically correlated witnesses**:
 1. **The Monitored Host (Agent):** Captures unparsed raw log bytes in real time with an in-memory Ed25519 key, shipping signed chunks before an attacker can modify disk.
 2. **The Off-Host Evidence Vault (Backend):** Persists exact raw bytes to append-only JSONL files with synchronous `fsync`, indexes records into SQLite, aggregates logs into **Odd-Node Promoted Merkle Trees**, and signs EIP-712 batch commitments.
-3. **The Blockchain Anchor (L1 / Quai Network / EVM):** Stores immutable Merkle root commitments and strictly enforces monotonic sequence continuity (`sequenceStart == lastSequenceEnd + 1`) with on-chain replay protection.
+3. **The Blockchain Anchor (L1 / Quai Network / EVM):** Stores immutable Merkle root commitments and strictly enforces monotonic sequence continuity (`sequenceStart == lastSequenceEnd + 1`) with on-chain replay protection (simulation validated in-process; not yet deployed to Orchard (no transaction hash)).
 
 ```mermaid
 flowchart TD
@@ -104,14 +104,14 @@ NeuroNova/
    - **Vault Signer:** Holds EIP-712 private key (`0x19 0x01`). Off-chain only; never pays gas or connects to RPC.
    - **Relayer Account:** Holds funded EVM/Quai account. Pays gas to execute `anchorBatch()`; never signs commitments.
 4. **$O(1)$ Blockchain Amortization:**  
-   The on-chain anchoring transaction fee is completely flat (**49,120 gas**), reducing cost to **4.91 gas / event** at 10,000 events/batch ($0.000295 per event).
+   The on-chain anchoring transaction fee is completely flat (**163,867 gas** chained, **177,525 gas** genesis), reducing cost to **16.39 gas / event** at 10,000 events/batch.
 
 ---
 
 ## Quickstart
 
 ### Prerequisites
-- **Node.js:** v22.12.0 or later (supports native `--experimental-strip-types`)
+- **Node.js:** v22.12.0 or later (Node 24 supported; native `--experimental-strip-types`)
 - **npm:** v10 or later
 - **Docker & Docker Compose:** (Optional, for running the multi-container lab)
 
@@ -130,26 +130,19 @@ npm install
 
 ## Test Suite and Verification
 
-The repository contains **362 tests passing at 100%**:
+The repository contains **421 tests passing at 100%** with zero regressions:
 
 ```bash
-# Run Core Cryptography tests (61 tests)
-npm run test:core
+# Run the complete unified test suite across all 6 workspaces (421 checks)
+npm run test:all
 
-# Run Blockchain Smart Contract standalone tests (9 tests)
-npm run test:blockchain
-
-# Run Evidence Vault Backend tests (72 tests)
-npm run test:backend
-
-# Run Host Agent Daemon tests (100 tests)
-npm test --prefix services/agent
-
-# Run Independent Verifier Service tests (73 tests)
-npm test --prefix services/verifier
-
-# Run Dashboard UI tests (47 tests)
-npm test --prefix apps/dashboard
+# Or run individual package suites:
+npm run test:core        # Core Cryptography (61 checks)
+npm run test:blockchain  # Blockchain Standalone (9) & Hardhat Tests (48)
+npm run test:backend     # Evidence Vault Backend (83 tests)
+npm test --prefix services/agent      # Host Agent Daemon (100 tests)
+npm test --prefix services/verifier   # Independent Verifier Service (73 tests)
+npm test --prefix apps/dashboard      # Dashboard UI (47 tests)
 ```
 
 ---
@@ -212,7 +205,7 @@ npm run benchmark
 | **Host Agent Ed25519** | Signing Speed | **29,774 ops/sec** | <0.03 ms per log burst on host |
 | **Vault Ed25519** | Verification Speed | **14,441 ops/sec** | Real-time rejection of counterfeit logs |
 | **Vault Storage Engine** | ACID Ingest & Index | **88 EPS** with synchronous `fsync` | Zero evidence loss guarantee |
-| **Blockchain Gas Cost** | Batch Anchor | **49,120 gas flat** | Invariant $O(1)$ gas cost |
+| **Blockchain Gas Cost** | Batch Anchor | **163,867 gas flat** (chained), **177,525 gas** (genesis) | Invariant $O(1)$ gas cost |
 
 ---
 
@@ -221,8 +214,11 @@ npm run benchmark
 To run the full multi-container victim-agent-vault environment:
 
 ```bash
-# Start all containers in isolated bridge network
-docker compose -f lab/compose.yaml up --build
+# 1. Generate uncommitted lab credentials
+node scripts/gen-lab-env.mjs
+
+# 2. Start all containers in isolated bridge network
+docker compose --env-file lab/.env.lab --env-file lab/contract-address.env -f lab/compose.yaml up --build
 ```
 
 - **`victim` (Port 2222):** Monitored Linux host forwarding logs to the Vault via TCP (`5140`) and local `/var/log/auth.log`.
@@ -245,10 +241,12 @@ node --experimental-strip-types services/verifier/dist/index.js verify-rest --ba
 
 ## Key Documentation
 
-- [`Docs/DISCREPANCIES_PROGRESS_AND_MAINTENANCE_ROADMAP.md`](Docs/DISCREPANCIES_PROGRESS_AND_MAINTENANCE_ROADMAP.md) — Comprehensive discrepancy audit, resolution history, and post-demo maintenance roadmap.
-- [`Docs/TECHNICAL_INTEGRATION_AND_SECURITY_VALIDATION_REPORT.md`](Docs/TECHNICAL_INTEGRATION_AND_SECURITY_VALIDATION_REPORT.md) — Architectural flowcharts, byte encodings, and multi-witness verification models.
-- [`Docs/BENCHMARK_REPORT.md`](Docs/BENCHMARK_REPORT.md) — Full benchmark methodology, gas cost models, and jury defense Q&A.
-- [`Docs/spec/ENCODING.md`](Docs/spec/ENCODING.md) — Frozen wire specification and test vector standards.
+- [`Docs/00_DOCUMENTATION_INDEX.md`](Docs/00_DOCUMENTATION_INDEX.md) — **Master Documentation Index & Progression Map**.
+- [`Docs/14_DISCREPANCIES_AND_MAINTENANCE_ROADMAP.md`](Docs/14_DISCREPANCIES_AND_MAINTENANCE_ROADMAP.md) — Comprehensive discrepancy audit, resolution history, and post-demo maintenance roadmap.
+- [`Docs/08_TECHNICAL_INTEGRATION_AND_SECURITY_VALIDATION_REPORT.md`](Docs/08_TECHNICAL_INTEGRATION_AND_SECURITY_VALIDATION_REPORT.md) — Architectural flowcharts, byte encodings, and multi-witness verification models.
+- [`Docs/09_BENCHMARK_REPORT.md`](Docs/09_BENCHMARK_REPORT.md) — Full benchmark methodology, gas cost models, and jury defense Q&A.
+- [`Docs/spec/01_ENCODING.md`](Docs/spec/01_ENCODING.md) — Frozen wire specification and test vector standards.
+- [`Docs/Maintenance/04_SECURITY_HYGIENE_AND_CI_EXECUTION_REPORT.md`](Docs/Maintenance/04_SECURITY_HYGIENE_AND_CI_EXECUTION_REPORT.md) — Security hygiene, toolchain pinning, and CI automation report.
 
 ---
 

@@ -67,3 +67,6 @@ export function getZoneFromAddress(address: string): string {
   if (prefixByte <= 0x57) return 'cyprus-3';
   return 'other-zone';
 }
+
+export * from './denylist.ts';
+

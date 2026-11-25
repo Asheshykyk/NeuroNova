@@ -24,7 +24,11 @@ services:
         value: /data/vault
       - key: EVIDENCE_SQLITE_PATH
         value: /data/vault/evidence-index.sqlite3
-      - key: AGENT_PUBLIC_KEY_HEX
-        value: "0x4fdca0e7c7f545bbb564917724963cf898e992efb2e7188bcae09a1862c23803"
       - key: VAULT_SIGNER_PRIVATE_KEY
-        value: "0xcb29eeba7ce945a733284c66ef3437b67b531f52c8d0e084a2e3518c2028d572"
+        sync: false
+      - key: TRUSTED_AGENT_PUBLIC_KEYS_JSON
+        sync: false
+      - key: READ_API_TOKEN
+        sync: false
+      - key: CORS_ALLOWED_ORIGINS
+        sync: false
