@@ -99,7 +99,7 @@ The complete monorepo test suite and live multi-witness rehearsal are verified a
 - **Canonical Leaf Hashing:** 489,935 leaves/sec (74.29 MB/s)
 - **Merkle Tree Build (10,000 leaves):** 14.22 ms (703,398 leaves/sec)
 - **Merkle Proof Verification:** 14.56 µs/proof (68,701 checks/sec)
-- **Smart Contract Gas (Chained Batch):** 49,120 gas flat ($\approx$ 4.91 gas/event for 10,000 events)
+- **Smart Contract Gas (Chained Batch):** 163,867 gas flat (re-measured under Solidity 0.8.19 / Paris EVM; $\approx$ 16.39 gas/event for 10,000 events)
 
 ---
 

@@ -244,4 +244,4 @@ flowchart TD
 ---
 
 ### Conclusion
-The monorepo is in a fully validated, production-ready state on `person-a`. All contracts between Person 1 (Crypto/Blockchain), Person 2 (Vault Backend), Person 3 (Victim Lab/Host Agent), and Person 4 (Dashboard/Auditor) are unified and conflict-free. Ready for final demo recording and presentation.
+The monorepo is in a fully validated state on `chore/security-hygiene`. Note: Smart contract integration on Quai Orchard testnet is verified in-process under Cyprus-1 domain parameters (chain ID 15000); not yet deployed to live Orchard testnet (no transaction hash). All contracts between Person 1 (Crypto/Blockchain), Person 2 (Vault Backend), Person 3 (Victim Lab/Host Agent), and Person 4 (Dashboard/Auditor) are unified and conflict-free. Ready for final demo recording and presentation.
