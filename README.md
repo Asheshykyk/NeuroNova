@@ -241,10 +241,12 @@ node --experimental-strip-types services/verifier/dist/index.js verify-rest --ba
 
 ## Key Documentation
 
-- [`Docs/DISCREPANCIES_PROGRESS_AND_MAINTENANCE_ROADMAP.md`](Docs/DISCREPANCIES_PROGRESS_AND_MAINTENANCE_ROADMAP.md) — Comprehensive discrepancy audit, resolution history, and post-demo maintenance roadmap.
-- [`Docs/TECHNICAL_INTEGRATION_AND_SECURITY_VALIDATION_REPORT.md`](Docs/TECHNICAL_INTEGRATION_AND_SECURITY_VALIDATION_REPORT.md) — Architectural flowcharts, byte encodings, and multi-witness verification models.
-- [`Docs/BENCHMARK_REPORT.md`](Docs/BENCHMARK_REPORT.md) — Full benchmark methodology, gas cost models, and jury defense Q&A.
-- [`Docs/spec/ENCODING.md`](Docs/spec/ENCODING.md) — Frozen wire specification and test vector standards.
+- [`Docs/00_DOCUMENTATION_INDEX.md`](Docs/00_DOCUMENTATION_INDEX.md) — **Master Documentation Index & Progression Map**.
+- [`Docs/14_DISCREPANCIES_AND_MAINTENANCE_ROADMAP.md`](Docs/14_DISCREPANCIES_AND_MAINTENANCE_ROADMAP.md) — Comprehensive discrepancy audit, resolution history, and post-demo maintenance roadmap.
+- [`Docs/08_TECHNICAL_INTEGRATION_AND_SECURITY_VALIDATION_REPORT.md`](Docs/08_TECHNICAL_INTEGRATION_AND_SECURITY_VALIDATION_REPORT.md) — Architectural flowcharts, byte encodings, and multi-witness verification models.
+- [`Docs/09_BENCHMARK_REPORT.md`](Docs/09_BENCHMARK_REPORT.md) — Full benchmark methodology, gas cost models, and jury defense Q&A.
+- [`Docs/spec/01_ENCODING.md`](Docs/spec/01_ENCODING.md) — Frozen wire specification and test vector standards.
+- [`Docs/Maintenance/04_SECURITY_HYGIENE_AND_CI_EXECUTION_REPORT.md`](Docs/Maintenance/04_SECURITY_HYGIENE_AND_CI_EXECUTION_REPORT.md) — Security hygiene, toolchain pinning, and CI automation report.
 
 ---
 

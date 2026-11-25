@@ -4,7 +4,7 @@
 **Branch:** `chore/security-hygiene`  
 **Pull Request:** [#15 (Asheshykyk/NeuroNova)](https://github.com/Asheshykyk/NeuroNova/pull/15)  
 **Target Branch:** `main`  
-**Execution Reference:** [TRUSTTRACE Security Hygiene, Toolchain and CI Runbook.md](file:///Users/sukruthasrigadde/stuff/NeuroNova/Docs/Maintanance/TRUSTTRACE%20Security%20Hygiene,%20Toolchain%20and%20CI%20Runbook.md)  
+**Execution Reference:** [03_SECURITY_HYGIENE_TOOLCHAIN_AND_CI_RUNBOOK.md](file:///Users/sukruthasrigadde/stuff/NeuroNova/Docs/Maintenance/03_SECURITY_HYGIENE_TOOLCHAIN_AND_CI_RUNBOOK.md)  
 **Overall Status:** COMPLETED & VERIFIED (421/421 Tests Passing, 0 Committed Keys, Dual CI Matrix Green)
 
 ---
@@ -94,7 +94,7 @@ Created [.github/workflows/ci.yml](file:///Users/sukruthasrigadde/stuff/NeuroNov
 
 ### Step 4: Documentation Corrections
 
-Reconciled claims in [README.md](file:///Users/sukruthasrigadde/stuff/NeuroNova/README.md) and [Docs/BENCHMARK_REPORT.md](file:///Users/sukruthasrigadde/stuff/NeuroNova/Docs/BENCHMARK_REPORT.md):
+Reconciled claims in [README.md](file:///Users/sukruthasrigadde/stuff/NeuroNova/README.md) and [Docs/09_BENCHMARK_REPORT.md](file:///Users/sukruthasrigadde/stuff/NeuroNova/Docs/09_BENCHMARK_REPORT.md):
 - Corrected overclaims from "unalterable / prevents tampering" to *"tamper-evident: we detect, prove and recover"*.
 - Re-measured gas consumption under Solidity 0.8.19 (`163,867` chained anchor, `177,525` genesis anchor).
 - Removed hypothetical USD pricing for Quai Network (Quai gas pricing is currently UNKNOWN).

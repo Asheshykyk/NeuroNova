@@ -1,6 +1,6 @@
 # TRUSTTRACE: Step 1a Read-Only Security Audit & Source Inventory
 **The Big Hack 2.0 · Track 02 (Cybersecurity & Blockchain) · Problem B3**  
-*Document Location: `Docs/Maintanance/STEP_1A_READ_ONLY_AUDIT_OUTPUT.md` | Date: November 25, 2026*
+*Document Location: `Docs/Maintenance/02_STEP_1A_READ_ONLY_AUDIT_OUTPUT.md` | Date: November 25, 2026*
 
 ---
 

@@ -1,6 +1,6 @@
 # TRUSTTRACE: Security Audit, Step 0 Read-Only Inventory & Maintenance Plan
 **The Big Hack 2.0 · Track 02 (Cybersecurity & Blockchain) · Problem B3**  
-*Document Location: `Docs/Maintanance/STEP_0_READ_ONLY_INVENTORY_AND_ACTION_PLAN.md` | Date: November 25, 2026*
+*Document Location: `Docs/Maintenance/01_STEP_0_READ_ONLY_INVENTORY_AND_ACTION_PLAN.md` | Date: November 25, 2026*
 
 ---
 
