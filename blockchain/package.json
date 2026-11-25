@@ -9,7 +9,6 @@
     "test": "node --experimental-strip-types test/contract-standalone.test.ts",
     "test:hardhat": "hardhat test",
     "deploy:local": "hardhat run scripts/deploy.ts --network localhost",
-    "deploy:amoy": "hardhat run scripts/deploy.ts --network amoy",
     "deploy:orchard": "hardhat run scripts/deploy-orchard.ts --network quai_orchard"
   },
   "dependencies": {
