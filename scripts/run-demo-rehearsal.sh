@@ -10,6 +10,8 @@ ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$ROOT_DIR"
 
 export NODE_ENV="${NODE_ENV:-development}"
+export ALLOW_SHARED_LAB_AGENT_KEY="${ALLOW_SHARED_LAB_AGENT_KEY:-true}"
+export ALLOW_UNAUTHENTICATED_READS="${ALLOW_UNAUTHENTICATED_READS:-true}"
 export BACKEND_HOST="${BACKEND_HOST:-127.0.0.1}"
 export BACKEND_PORT="${BACKEND_PORT:-3000}"
 export RSYSLOG_PORT="${RSYSLOG_PORT:-5140}"
@@ -27,7 +29,7 @@ echo "✓ Smart Contracts verified (9/9 standalone tests passing)."
 
 echo "[3/4] Running Evidence Vault Backend Ingestion & Storage Checks (backend)..."
 npm test --prefix backend > /dev/null
-echo "✓ Backend Storage & Ingestion verified (72/72 tests passing)."
+echo "✓ Backend Storage & Ingestion verified (83/83 tests passing)."
 
 echo "[4/4] Executing 3-Witness Live Attack Scenarios..."
 echo ""
