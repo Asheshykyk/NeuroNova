@@ -16,7 +16,9 @@
     "test:blockchain": "node --experimental-strip-types blockchain/test/contract-standalone.test.ts",
     "test:backend": "npm run test --workspace=@trusttrace/backend",
     "typecheck:backend": "npm run typecheck --workspace=@trusttrace/backend",
-    "test:all": "npm run test:core && npm run test:blockchain && npm run test:backend"
+    "test:all": "npm run test:core && npm run test:blockchain && npm run test:backend",
+    "benchmark": "node --experimental-strip-types scripts/benchmark.ts",
+    "demo:rehearsal": "bash scripts/run-demo-rehearsal.sh"
   },
   "devDependencies": {
     "quais": "^1.0.0-alpha.58",
