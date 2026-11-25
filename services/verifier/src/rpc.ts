@@ -15,8 +15,8 @@ export const QUAI_ORCHARD_REGISTRY = {
   network: 'Quai Orchard Cyprus-1',
   chainId: BigInt(orchard.chainId),
   rpcUrl: orchard.rpcUrl,
-  contractAddress: orchard.contractAddress ? orchard.contractAddress.toLowerCase() : '',
-  expectedVaultSigner: orchard.vaultSignerAddress ?? '',
+  contractAddress: (orchard.contractAddress as string | null)?.toLowerCase() ?? '',
+  expectedVaultSigner: (orchard.vaultSignerAddress as string | null) ?? '',
 } as const;
 
 const local = deployments.local_hardhat;

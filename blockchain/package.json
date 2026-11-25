@@ -13,7 +13,7 @@
   },
   "dependencies": {
     "@openzeppelin/contracts": "^5.0.2",
-    "quais": "^1.0.0-alpha.53"
+    "quais": "1.0.0-alpha.58"
   },
   "devDependencies": {
     "@nomicfoundation/hardhat-toolbox": "^5.0.0",
